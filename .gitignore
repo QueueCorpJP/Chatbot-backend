@@ -21,9 +21,6 @@ env/
 .vscode/
 .idea/
 
-# Deployment files
-Procfile
-
 # Vercel directories
 .vercel/
 
