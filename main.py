@@ -14,11 +14,12 @@ from datetime import datetime
 import json
 from pydantic import BaseModel
 import sqlite3
-from sqlite3 import Connection
+# from sqlite3 import Connection
 import uuid
 import logging
 import PyPDF2
 import re
+import sqlitecloud
 
 # ロギングの設定
 logging.basicConfig(
@@ -40,6 +41,10 @@ genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
 app = FastAPI()
+CONNECTION_STRING = "sqlitecloud://cmiyvod2nz.g6.sqlite.cloud:8860/chinook.sqlite?apikey=bL5cWc5vE4sMTyK0c50ezVrdYXkLbeQt2vArWr9tYrM"
+
+def dict_factory(cursor, row):
+    return {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
 
 # リクエストロギングミドルウェア
 @app.middleware("http")
@@ -65,8 +70,9 @@ app.add_middleware(
 
 # データベース接続
 def get_db():
-    conn = sqlite3.connect("chatbot.db", check_same_thread=False)
-    conn.row_factory = sqlite3.Row
+    conn = sqlitecloud.connect(CONNECTION_STRING)
+    # Set row_factory to sqlite3.Row to enable dict-like access to columns
+    conn.row_factory = dict_factory
     try:
         yield conn
     finally:
@@ -74,37 +80,37 @@ def get_db():
 
 # データベース初期化
 def init_db():
-    conn = sqlite3.connect("chatbot.db")
-    cursor = conn.cursor()
+    conn = sqlitecloud.connect(CONNECTION_STRING)
     
-    # チャット履歴テーブル
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS chat_history (
-        id TEXT PRIMARY KEY,
-        user_message TEXT NOT NULL,
-        bot_response TEXT NOT NULL,
-        timestamp TEXT NOT NULL,
-        category TEXT,
-        sentiment TEXT,
-        employee_id TEXT,
-        employee_name TEXT
-    )
-    ''')
-    
-    # 既存のテーブルに employee_id と employee_name カラムが存在するか確認し、なければ追加
-    cursor.execute("PRAGMA table_info(chat_history)")
-    columns = [column[1] for column in cursor.fetchall()]
-    
-    if 'employee_id' not in columns:
-        print("employee_id カラムを追加しています...")
-        cursor.execute("ALTER TABLE chat_history ADD COLUMN employee_id TEXT")
-    
-    if 'employee_name' not in columns:
-        print("employee_name カラムを追加しています...")
-        cursor.execute("ALTER TABLE chat_history ADD COLUMN employee_name TEXT")
-    
-    conn.commit()
-    conn.close()
+    try:
+        # Create chat_history table if it doesn't exist
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS chat_history (
+                id TEXT PRIMARY KEY,
+                user_message TEXT NOT NULL,
+                bot_response TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                category TEXT,
+                sentiment TEXT,
+                employee_id TEXT,
+                employee_name TEXT
+            )
+        ''')
+        # Check if additional columns exist and add if necessary
+        cursor = conn.execute("PRAGMA table_info(chat_history)")
+        columns = [row[1] for row in cursor.fetchall()]
+        if 'employee_id' not in columns:
+            logger.info("employee_id カラムを追加しています...")
+            conn.execute("ALTER TABLE chat_history ADD COLUMN employee_id TEXT")
+        if 'employee_name' not in columns:
+            logger.info("employee_name カラムを追加しています...")
+            conn.execute("ALTER TABLE chat_history ADD COLUMN employee_name TEXT")
+        conn.commit()
+        logger.info("データベースを初期化しました。")
+    except Exception as e:
+        logger.error(f"データベース初期化エラー: {e}")
+    finally:
+        conn.close()
 
 # アプリケーション起動時にデータベースを初期化
 init_db()
@@ -378,7 +384,7 @@ async def get_knowledge_base():
     }
 
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat(message: ChatMessage, db: Connection = Depends(get_db)):
+async def chat(message: ChatMessage, db = Depends(get_db)):
     """チャットメッセージを処理してGeminiからの応答を返す"""
     try:
         if knowledge_base.data is None:
@@ -473,7 +479,7 @@ async def chat(message: ChatMessage, db: Connection = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/admin/chat-history", response_model=List[ChatHistoryItem])
-async def get_chat_history(db: Connection = Depends(get_db)):
+async def get_chat_history(db = Depends(get_db)):
     """チャット履歴を取得する"""
     print("チャット履歴取得APIが呼び出されました")
     try:
@@ -507,7 +513,7 @@ async def get_chat_history(db: Connection = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/admin/analyze-chats", response_model=AnalysisResult)
-async def analyze_chats(db: Connection = Depends(get_db)):
+async def analyze_chats(db = Depends(get_db)):
     """チャット履歴を分析する"""
     try:
         cursor = db.cursor()
@@ -609,7 +615,7 @@ async def analyze_chats(db: Connection = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/admin/employee-details/{employee_id}", response_model=List[ChatHistoryItem])
-async def get_employee_details(employee_id: str, db: Connection = Depends(get_db)):
+async def get_employee_details(employee_id: str, db = Depends(get_db)):
     """特定の社員の詳細なチャット履歴を取得する"""
     try:
         cursor = db.cursor()
@@ -650,7 +656,7 @@ async def get_employee_details(employee_id: str, db: Connection = Depends(get_db
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/admin/employee-usage", response_model=EmployeeUsageResult)
-async def get_employee_usage(db: Connection = Depends(get_db)):
+async def get_employee_usage(db = Depends(get_db)):
     """社員ごとの利用状況を取得する"""
     try:
         cursor = db.cursor()
