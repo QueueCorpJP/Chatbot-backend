@@ -14,9 +14,6 @@ env/
 # dotenv files
 .env
 
-# Database file
-*.db
-
 # IDE/editor directories
 .vscode/
 .idea/
