@@ -13,15 +13,12 @@ from io import BytesIO
 from datetime import datetime
 import json
 from pydantic import BaseModel
-# import sqlite3
-# from sqlite3 import Connection
+import sqlite3
+from sqlite3 import Connection
 import uuid
 import logging
 import PyPDF2
 import re
-import sqlitecloud
-
-
 
 # ロギングの設定
 logging.basicConfig(
@@ -42,8 +39,7 @@ load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
-app = FastAPI()
-CONNECTION_STRING = "sqlitecloud://cmiyvod2nz.g6.sqlite.cloud:8860/chinook.sqlite?apikey=bL5cWc5vE4sMTyK0c50ezVrdYXkLbeQt2vArWr9tYrM"
+app = FastAPI(root_path="/api")
 
 # リクエストロギングミドルウェア
 @app.middleware("http")
@@ -69,8 +65,8 @@ app.add_middleware(
 
 # データベース接続
 def get_db():
-    conn = sqlitecloud.connect(CONNECTION_STRING)
-   
+    conn = sqlite3.connect("chatbot.db", check_same_thread=False)
+    conn.row_factory = sqlite3.Row
     try:
         yield conn
     finally:
@@ -78,37 +74,37 @@ def get_db():
 
 # データベース初期化
 def init_db():
-    conn = sqlitecloud.connect(CONNECTION_STRING)
+    conn = sqlite3.connect("chatbot.db")
+    cursor = conn.cursor()
     
-    try:
-        # Create chat_history table if it doesn't exist
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS chat_history (
-                id TEXT PRIMARY KEY,
-                user_message TEXT NOT NULL,
-                bot_response TEXT NOT NULL,
-                timestamp TEXT NOT NULL,
-                category TEXT,
-                sentiment TEXT,
-                employee_id TEXT,
-                employee_name TEXT
-            )
-        ''')
-        # Check if additional columns exist and add if necessary
-        cursor = conn.execute("PRAGMA table_info(chat_history)")
-        columns = [row[1] for row in cursor.fetchall()]
-        if 'employee_id' not in columns:
-            logger.info("employee_id カラムを追加しています...")
-            conn.execute("ALTER TABLE chat_history ADD COLUMN employee_id TEXT")
-        if 'employee_name' not in columns:
-            logger.info("employee_name カラムを追加しています...")
-            conn.execute("ALTER TABLE chat_history ADD COLUMN employee_name TEXT")
-        conn.commit()
-        logger.info("データベースを初期化しました。")
-    except Exception as e:
-        logger.error(f"データベース初期化エラー: {e}")
-    finally:
-        conn.close()
+    # チャット履歴テーブル
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS chat_history (
+        id TEXT PRIMARY KEY,
+        user_message TEXT NOT NULL,
+        bot_response TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        category TEXT,
+        sentiment TEXT,
+        employee_id TEXT,
+        employee_name TEXT
+    )
+    ''')
+    
+    # 既存のテーブルに employee_id と employee_name カラムが存在するか確認し、なければ追加
+    cursor.execute("PRAGMA table_info(chat_history)")
+    columns = [column[1] for column in cursor.fetchall()]
+    
+    if 'employee_id' not in columns:
+        print("employee_id カラムを追加しています...")
+        cursor.execute("ALTER TABLE chat_history ADD COLUMN employee_id TEXT")
+    
+    if 'employee_name' not in columns:
+        print("employee_name カラムを追加しています...")
+        cursor.execute("ALTER TABLE chat_history ADD COLUMN employee_name TEXT")
+    
+    conn.commit()
+    conn.close()
 
 # アプリケーション起動時にデータベースを初期化
 init_db()
@@ -382,7 +378,7 @@ async def get_knowledge_base():
     }
 
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat(message: ChatMessage, db = Depends(get_db)):
+async def chat(message: ChatMessage, db: Connection = Depends(get_db)):
     """チャットメッセージを処理してGeminiからの応答を返す"""
     try:
         if knowledge_base.data is None:
@@ -477,7 +473,7 @@ async def chat(message: ChatMessage, db = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/admin/chat-history", response_model=List[ChatHistoryItem])
-async def get_chat_history(db = Depends(get_db)):
+async def get_chat_history(db: Connection = Depends(get_db)):
     """チャット履歴を取得する"""
     print("チャット履歴取得APIが呼び出されました")
     try:
@@ -485,62 +481,95 @@ async def get_chat_history(db = Depends(get_db)):
         cursor.execute("SELECT * FROM chat_history ORDER BY timestamp DESC")
         rows = cursor.fetchall()
         
-        # Convert tuples to dictionaries
-        chat_history = [ChatHistoryItem(**dict(zip([col[0] for col in cursor.description], row))) for row in rows]
+        print(f"チャット履歴取得結果: {len(rows)}件")
+        
+        # SQLite Rowオブジェクトを辞書に変換
+        chat_history = []
+        for row in rows:
+            item = {
+                "id": row["id"],
+                "user_message": row["user_message"],
+                "bot_response": row["bot_response"],
+                "timestamp": row["timestamp"],
+                "category": row["category"],
+                "sentiment": row["sentiment"],
+                "employee_id": row["employee_id"],
+                "employee_name": row["employee_name"]
+            }
+            chat_history.append(item)
+        
+        print(f"チャット履歴変換結果: {len(chat_history)}件")
         return chat_history
     except Exception as e:
+        print(f"チャット履歴取得エラー: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
-    # try:
-    #     cursor = db.cursor()
-    #     cursor.execute("SELECT * FROM chat_history ORDER BY timestamp DESC")
-    #     rows = cursor.fetchall()
-        
-    #     print(f"チャット履歴取得結果: {len(rows)}件")
-        
-    #     # SQLite Rowオブジェクトを辞書に変換
-    #     chat_history = []
-    #     for row in rows:
-    #         item = {
-    #             "id": row["id"],
-    #             "user_message": row["user_message"],
-    #             "bot_response": row["bot_response"],
-    #             "timestamp": row["timestamp"],
-    #             "category": row["category"],
-    #             "sentiment": row["sentiment"],
-    #             "employee_id": row["employee_id"],
-    #             "employee_name": row["employee_name"]
-    #         }
-    #         chat_history.append(item)
-        
-    #     print(f"チャット履歴変換結果: {len(chat_history)}件")
-    #     return chat_history
-    # except Exception as e:
-    #     print(f"チャット履歴取得エラー: {str(e)}")
-    #     import traceback
-    #     print(traceback.format_exc())
-    #     raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/admin/analyze-chats", response_model=AnalysisResult)
-async def analyze_chats(db = Depends(get_db)):
+async def analyze_chats(db: Connection = Depends(get_db)):
     """チャット履歴を分析する"""
     try:
         cursor = db.cursor()
         
-        cursor.execute("SELECT category, sentiment, user_message FROM chat_history")
+        # 全チャット履歴を取得
+        cursor.execute("SELECT * FROM chat_history ORDER BY timestamp DESC")
         rows = cursor.fetchall()
-
-        category_distribution = {}
-        sentiment_distribution = {}
-        question_counts = {}
-
+        
+        if not rows:
+            return {
+                "category_distribution": {},
+                "sentiment_distribution": {},
+                "common_questions": [],
+                "insights": "チャット履歴がありません。"
+            }
+        
+        # チャット履歴をリストに変換
+        chat_history = []
         for row in rows:
-            category, sentiment, question = row
-            category_distribution[category] = category_distribution.get(category, 0) + 1
-            sentiment_distribution[sentiment] = sentiment_distribution.get(sentiment, 0) + 1
-            question_counts[question] = question_counts.get(question, 0) + 1
-
-        common_questions = sorted(question_counts.items(), key=lambda x: x[1], reverse=True)[:5]
-        common_questions = [{"question": q, "count": c} for q, c in common_questions]
+            chat_history.append({
+                "id": row["id"],
+                "user_message": row["user_message"],
+                "bot_response": row["bot_response"],
+                "timestamp": row["timestamp"],
+                "category": row["category"],
+                "sentiment": row["sentiment"]
+            })
+        
+        # カテゴリ分布の集計
+        category_distribution = {}
+        for chat in chat_history:
+            category = chat["category"] or "未分類"
+            if category in category_distribution:
+                category_distribution[category] += 1
+            else:
+                category_distribution[category] = 1
+        
+        # 感情分布の集計
+        sentiment_distribution = {}
+        for chat in chat_history:
+            sentiment = chat["sentiment"] or "neutral"
+            if sentiment in sentiment_distribution:
+                sentiment_distribution[sentiment] += 1
+            else:
+                sentiment_distribution[sentiment] = 1
+        
+        # よくある質問の抽出（単純な頻度ベース）
+        question_counts = {}
+        for chat in chat_history:
+            question = chat["user_message"]
+            if question in question_counts:
+                question_counts[question] += 1
+            else:
+                question_counts[question] = 1
+        
+        # 頻度順に並べ替えて上位5件を取得
+        common_questions = []
+        for question, count in sorted(question_counts.items(), key=lambda x: x[1], reverse=True)[:5]:
+            common_questions.append({
+                "question": question,
+                "count": count
+            })
         
         # Gemini APIを使用して深い分析を行う
         analysis_prompt = f"""
@@ -579,14 +608,13 @@ async def analyze_chats(db = Depends(get_db)):
         print(f"チャット分析エラー: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.get("/api/admin/employee-details/{employee_id}", response_model=List[ChatHistoryItem])
-async def get_employee_details(employee_id: str, db=Depends(get_db)):
-    """Retrieve detailed chat history of a specific employee"""
+async def get_employee_details(employee_id: str, db: Connection = Depends(get_db)):
+    """特定の社員の詳細なチャット履歴を取得する"""
     try:
         cursor = db.cursor()
         
-        # Handle anonymous users
+        # 'anonymous'の場合はNULLとして検索
         if employee_id == 'anonymous':
             cursor.execute("""
             SELECT * FROM chat_history
@@ -602,19 +630,32 @@ async def get_employee_details(employee_id: str, db=Depends(get_db)):
         
         rows = cursor.fetchall()
         
-        # Convert tuples to dictionary
-        column_names = [col[0] for col in cursor.description]
-        chat_history = [ChatHistoryItem(**dict(zip(column_names, row))) for row in rows]
+        # SQLite Rowオブジェクトを辞書に変換
+        chat_history = []
+        for row in rows:
+            chat_history.append({
+                "id": row["id"],
+                "user_message": row["user_message"],
+                "bot_response": row["bot_response"],
+                "timestamp": row["timestamp"],
+                "category": row["category"],
+                "sentiment": row["sentiment"],
+                "employee_id": row["employee_id"],
+                "employee_name": row["employee_name"]
+            })
         
         return chat_history
     except Exception as e:
+        print(f"社員詳細取得エラー: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/admin/employee-usage", response_model=EmployeeUsageResult)
-async def get_employee_usage(db=Depends(get_db)):
-    """Retrieve employee usage statistics"""
+async def get_employee_usage(db: Connection = Depends(get_db)):
+    """社員ごとの利用状況を取得する"""
     try:
         cursor = db.cursor()
+        
+        # 社員ごとのデータを取得（employee_idがNULLの場合は'anonymous'として扱う）
         cursor.execute("""
         SELECT
             COALESCE(employee_id, 'anonymous') as employee_id,
@@ -628,46 +669,69 @@ async def get_employee_usage(db=Depends(get_db)):
         """)
         
         employee_rows = cursor.fetchall()
+        
         if not employee_rows:
             return {"employee_usage": []}
         
         employee_usage = []
-        column_names = [col[0] for col in cursor.description]
         
         for row in employee_rows:
-            row_dict = dict(zip(column_names, row))
-            employee_id = row_dict["employee_id"]
-            employee_name = row_dict["employee_name"]
-            categories = row_dict["categories"].split(',') if row_dict["categories"] else []
+            employee_id = row["employee_id"]
+            employee_name = row["employee_name"]
             
+            # 社員IDが'anonymous'の場合もデータを表示する
+                
+            # 社員ごとのカテゴリ分布を計算
+            categories = row["categories"].split(',') if row["categories"] else []
             category_counts = {}
+            
             for category in categories:
                 if category:
-                    category_counts[category] = category_counts.get(category, 0) + 1
+                    if category in category_counts:
+                        category_counts[category] += 1
+                    else:
+                        category_counts[category] = 1
             
-            top_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)[:3]
-            top_categories = [{"category": cat, "count": count} for cat, count in top_categories]
+            # 上位カテゴリを取得
+            top_categories = []
+            for category, count in sorted(category_counts.items(), key=lambda x: x[1], reverse=True)[:3]:
+                top_categories.append({
+                    "category": category,
+                    "count": count
+                })
             
-            cursor.execute("""
-            SELECT user_message FROM chat_history
-            WHERE (employee_id IS NULL AND ? = 'anonymous') OR employee_id = ?
-            ORDER BY timestamp DESC
-            LIMIT 3
-            """, (employee_id, employee_id))
+            # 最近の質問を取得（employee_idが'anonymous'の場合はNULLとして検索）
+            if employee_id == 'anonymous':
+                cursor.execute("""
+                SELECT user_message
+                FROM chat_history
+                WHERE employee_id IS NULL
+                ORDER BY timestamp DESC
+                LIMIT 3
+                """)
+            else:
+                cursor.execute("""
+                SELECT user_message
+                FROM chat_history
+                WHERE employee_id = ?
+                ORDER BY timestamp DESC
+                LIMIT 3
+                """, (employee_id,))
             
-            recent_questions = [q[0] for q in cursor.fetchall()]
+            recent_questions = [q["user_message"] for q in cursor.fetchall()]
             
             employee_usage.append({
                 "employee_id": employee_id,
                 "employee_name": employee_name or "名前なし",
-                "message_count": row_dict["message_count"],
-                "last_activity": row_dict["last_activity"],
+                "message_count": row["message_count"],
+                "last_activity": row["last_activity"],
                 "top_categories": top_categories,
                 "recent_questions": recent_questions
             })
         
         return {"employee_usage": employee_usage}
     except Exception as e:
+        print(f"社員利用状況取得エラー: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # 静的ファイルのマウント
