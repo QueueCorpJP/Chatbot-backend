@@ -154,7 +154,7 @@ class KnowledgeBase:
 
 knowledge_base = KnowledgeBase()
 
-@app.post("/api/upload-knowledge")
+@app.post("/chatbot/api/upload-knowledge")
 async def upload_knowledge(file: UploadFile = File(...)):
     """ファイルをアップロードして知識ベースを更新"""
     if not file.filename.endswith(('.xlsx', '.xls', '.pdf')):
@@ -360,7 +360,7 @@ async def upload_knowledge(file: UploadFile = File(...)):
             detail=f"ファイルのアップロード中にエラーが発生しました: {str(e)}"
         )
 
-@app.get("/api/knowledge-base")
+@app.get("/chatbot/api/knowledge-base")
 async def get_knowledge_base():
     """現在の知識ベースの情報を取得"""
     if knowledge_base.data is None:
@@ -377,7 +377,7 @@ async def get_knowledge_base():
         "total_rows": len(knowledge_base.data)
     }
 
-@app.post("/api/chat", response_model=ChatResponse)
+@app.post("/chatbot/api/chat", response_model=ChatResponse)
 async def chat(message: ChatMessage, db: Connection = Depends(get_db)):
     """チャットメッセージを処理してGeminiからの応答を返す"""
     try:
@@ -472,7 +472,7 @@ async def chat(message: ChatMessage, db: Connection = Depends(get_db)):
         print(f"チャットエラー: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/admin/chat-history", response_model=List[ChatHistoryItem])
+@app.get("/chatbot/api/admin/chat-history", response_model=List[ChatHistoryItem])
 async def get_chat_history(db: Connection = Depends(get_db)):
     """チャット履歴を取得する"""
     print("チャット履歴取得APIが呼び出されました")
@@ -506,7 +506,7 @@ async def get_chat_history(db: Connection = Depends(get_db)):
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/admin/analyze-chats", response_model=AnalysisResult)
+@app.get("/chatbot/api/admin/analyze-chats", response_model=AnalysisResult)
 async def analyze_chats(db: Connection = Depends(get_db)):
     """チャット履歴を分析する"""
     try:
@@ -608,7 +608,7 @@ async def analyze_chats(db: Connection = Depends(get_db)):
         print(f"チャット分析エラー: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/admin/employee-details/{employee_id}", response_model=List[ChatHistoryItem])
+@app.get("/chatbot/api/admin/employee-details/{employee_id}", response_model=List[ChatHistoryItem])
 async def get_employee_details(employee_id: str, db: Connection = Depends(get_db)):
     """特定の社員の詳細なチャット履歴を取得する"""
     try:
@@ -649,7 +649,7 @@ async def get_employee_details(employee_id: str, db: Connection = Depends(get_db
         print(f"社員詳細取得エラー: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/admin/employee-usage", response_model=EmployeeUsageResult)
+@app.get("/chatbot/api/admin/employee-usage", response_model=EmployeeUsageResult)
 async def get_employee_usage(db: Connection = Depends(get_db)):
     """社員ごとの利用状況を取得する"""
     try:
