@@ -1,146 +1,103 @@
-# テナントサポートチャットボット - バックエンド
+# バックエンドアプリケーション
 
-## 必要条件
+このディレクトリには、チャットボットアプリケーションのバックエンドコードが含まれています。
 
-- Python 3.8 以上
-- pip（Python パッケージマネージャー）
+## 技術スタック
 
-## セットアップ手順
+- **言語**: Python 3.9+
+- **フレームワーク**: FastAPI
+- **データベース**: SQLite
+- **AI**: Google Gemini API
 
-1. 必要なパッケージをインストール
-
-```bash
-pip install -r requirements.txt
-```
-
-2. 環境変数の設定
-   `.env`ファイルを backend ディレクトリに作成し、以下の内容を設定：
+## ディレクトリ構造
 
 ```
-GOOGLE_API_KEY=your_gemini_api_key_here
+backend/
+├── modules/         # モジュール化されたコード
+│   ├── __init__.py  # パッケージ初期化ファイル
+│   ├── admin.py     # 管理画面関連の機能
+│   ├── chat.py      # チャット処理関連の機能
+│   ├── company.py   # 会社名管理関連の機能
+│   ├── config.py    # アプリケーション設定
+│   ├── database.py  # データベース接続と操作
+│   ├── knowledge_base.py # 知識ベース管理
+│   └── models.py    # データモデル定義
+├── .env             # 環境変数設定ファイル
+├── chatbot.db       # SQLiteデータベースファイル
+├── main.py          # メインアプリケーションエントリーポイント
+├── Procfile         # デプロイ用設定ファイル
+└── README.md        # このファイル
 ```
 
-## 実行方法
+## 環境変数
 
-1. backend ディレクトリに移動
+バックエンドアプリケーションは以下の環境変数を使用します：
 
-```bash
-cd tenant-chatbot/backend
-```
+- `GOOGLE_API_KEY`: Google Gemini APIのAPIキー
+- `PORT`: サーバーのポート番号（デフォルト: 8083）
+- `COMPANY_NAME`: 会社名（デフォルト: "ワンスアラウンド"）
 
-2. サーバーを起動
+これらの環境変数は `.env` ファイルに設定することができます。
 
-```bash
-python main.py
-```
+## モジュール説明
 
-サーバーは`http://localhost:8082`で起動します。
+### config.py
+
+アプリケーション全体の設定を管理します。環境変数の読み込み、ロギング設定、Gemini API設定などを行います。
+
+### database.py
+
+データベース接続と初期化を管理します。SQLiteデータベースの設定とテーブル作成を行います。
+
+### models.py
+
+APIで使用するPydanticモデルを定義します。リクエスト/レスポンスの型を定義します。
+
+### knowledge_base.py
+
+知識ベースの管理と処理を行います。URLやファイルからのデータ抽出、保存を担当します。
+
+### chat.py
+
+チャット機能とAI応答生成を管理します。Gemini APIを使用した応答生成を行います。
+
+### admin.py
+
+管理画面で使用する機能を提供します。チャット履歴の分析や社員利用状況の取得を行います。
+
+### company.py
+
+会社名の管理と設定を行います。環境変数と.envファイルの更新を担当します。
 
 ## API エンドポイント
 
-- `POST /upload-knowledge`: ナレッジベースのアップロード
-- `GET /knowledge-base`: 現在のナレッジベース情報を取得
-- `POST /chat`: チャットメッセージの送信
-- `GET /admin/chat-history`: チャット履歴の取得
-- `GET /admin/analyze-chats`: チャット分析の取得
+### チャット関連
 
-# チャットボットバックエンドのデプロイガイド
+- `POST /api/chat`: チャットメッセージを送信し、AIからの応答を取得
+- `GET /api/knowledge-base`: 現在の知識ベース情報を取得
+- `POST /api/upload-knowledge`: ファイルをアップロードして知識ベースを更新
+- `POST /api/submit-url`: URLを送信して知識ベースを更新
 
-このガイドでは、AWS EC2 インスタンス上に Nginx を使用してチャットボットバックエンドアプリケーションをデプロイする方法を説明します。
+### 管理画面関連
 
-## 1. プロジェクトリポジトリのクローン
+- `GET /api/admin/chat-history`: チャット履歴を取得
+- `GET /api/admin/analyze-chats`: チャット履歴を分析
+- `GET /api/admin/employee-details/{employee_id}`: 特定の社員の詳細情報を取得
+- `GET /api/admin/employee-usage`: 社員ごとの利用状況を取得
 
-まず、EC2 インスタンスにリポジトリをクローンします：
+### 会社設定関連
+
+- `GET /api/company-name`: 現在の会社名を取得
+- `POST /api/company-name`: 会社名を設定
+
+## 起動方法
 
 ```bash
-git clone https://github.com/QueueCorpJP/Chatbot-backend.git
-```
-
-## 2. Python モジュールのインストール
-
-プロジェクトディレクトリに移動し、必要な Python モジュールを pip でインストールします：
-
-```bash
-python -m venv venv
-source venv/bin/activate
+# 依存関係のインストール
 pip install -r requirements.txt
+
+# アプリケーションの起動
+python backend/main.py
 ```
 
-## 3. chatbot-backend.service ファイルの作成
-
-次に、バックエンドサービスを管理するための systemd サービスファイルを作成します。サービスファイルを編集します：
-
-```bash
-sudo nano /etc/systemd/system/chatbot-backend.service
-```
-
-以下の設定をサービスファイルに追加します：
-
-```ini
-[Unit]
-Description=Chatbot Backend service
-After=network.target
-
-[Service]
-User=ec2-user
-WorkingDirectory=/home/ec2-user/Chatbot/Chatbot-backend
-ExecStart=/home/ec2-user/Chatbot/Chatbot-backend/venv/bin/python main.py
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-## 4. サービスの開始と状態確認
-
-サービスを有効にして開始し、正しく動作しているか確認します：
-
-```bash
-sudo systemctl start chatbot-backend
-sudo systemctl status chatbot-backend
-
-```
-
-バックエンドサービスはポート 8083 で実行されます。
-
-## 5. AWS EC2 でポート 8083 を開放
-
-ポート 8083 でトラフィックを許可するために、このポートを AWS セキュリティグループで開放する必要があります。
-
-1. **EC2 管理コンソールに移動。**.
-2. **セキュリティグループに移動し、** EC2 インスタンスにアタッチされているセキュリティグループを選択。
-3. **インバウンドルールを編集し、** ポート 8083 でトラフィックを許可する新しいルールを追加します：
-   - **タイプ**: カスタム TCP ルール
-   - **ポート範囲**: 8083
-   - **ソース**: 0.0.0.0/0
-
-## 6. Nginx 設定の更新
-
-次に、バックエンドサービスへのリクエストをプロキシするために Nginx の設定を更新します。nginx.conf ファイルを開き、以下のブロックを追加します：
-
-```bash
-sudo nano /etc/nginx/nginx.conf
-
-```
-
-以下の設定をファイルに追加します：
-
-```nginx
-location /api/ {
-    proxy_pass http://127.0.0.1:8083;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-}
-
-```
-
-## 7. Nginx のテストと再起動
-
-最後に、Nginx 設定をテストし、サービスを再起動して変更を適用します：
-
-```bash
-sudo nginx -t
-sudo systemctl restart nginx
-```
+サーバーは `http://localhost:8083` で起動します。
