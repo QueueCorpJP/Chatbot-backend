@@ -63,7 +63,7 @@ async def log_requests(request: Request, call_next):
 # 統合環境では、すべてのオリジンを許可する
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://chatbot-frontend-nine-eta.vercel.app/login"],  # すべてのオリジンを許可
+    allow_origins=["https://chatbot-frontend-nine-eta.vercel.app"],  # すべてのオリジンを許可
     allow_credentials=True,  # クレデンシャルを含むリクエストを許可
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
