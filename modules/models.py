@@ -3,6 +3,7 @@
 APIで使用するPydanticモデルを定義します
 """
 from typing import Dict, List, Optional, Any, Union
+from datetime import datetime
 from pydantic import BaseModel, HttpUrl, EmailStr
 
 # ユーザー認証関連モデル
@@ -20,7 +21,7 @@ class UserResponse(BaseModel):
     email: str
     name: str
     role: str
-    created_at: str
+    created_at: datetime
 
 class UsageLimit(BaseModel):
     document_uploads_used: int
@@ -49,7 +50,7 @@ class ChatHistoryItem(BaseModel):
     id: str
     user_message: str
     bot_response: str
-    timestamp: str
+    timestamp: datetime
     category: Optional[str] = None
     sentiment: Optional[str] = None
     employee_id: Optional[str] = None
@@ -69,7 +70,7 @@ class EmployeeUsageItem(BaseModel):
     employee_id: str
     employee_name: str
     message_count: int
-    last_activity: str
+    last_activity: datetime
     top_categories: List[Dict[str, Any]]
     recent_questions: List[str]
 
@@ -92,7 +93,7 @@ class CompanyNameRequest(BaseModel):
 class ResourceItem(BaseModel):
     name: str
     type: str
-    timestamp: str
+    timestamp: datetime
     active: bool = True
     uploaded_by: Optional[str] = None
 

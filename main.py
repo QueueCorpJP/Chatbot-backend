@@ -11,8 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from sqlite3 import Connection
-
+from psycopg2.extensions import connection as Connection
 # モジュールのインポート
 from modules.config import setup_logging, setup_gemini
 from modules.company import DEFAULT_COMPANY_NAME
@@ -124,7 +123,7 @@ async def admin_register_user(user_data: AdminUserCreate, current_user = Depends
     try:
         # まず、メールアドレスが既に存在するかチェック
         cursor = db.cursor()
-        cursor.execute("SELECT id FROM users WHERE email = ?", (user_data.email,))
+        cursor.execute("SELECT id FROM users WHERE email = %s", (user_data.email,))
         existing_user = cursor.fetchone()
         
         if existing_user:
@@ -216,7 +215,7 @@ async def admin_delete_user(user_id: str, current_user = Depends(get_admin_or_us
     
     # ユーザーの存在確認
     cursor = db.cursor()
-    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
     user = cursor.fetchone()
     
     if not user:
@@ -226,8 +225,8 @@ async def admin_delete_user(user_id: str, current_user = Depends(get_admin_or_us
         )
     
     # ユーザーの削除
-    cursor.execute("DELETE FROM usage_limits WHERE user_id = ?", (user_id,))
-    cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    cursor.execute("DELETE FROM usage_limits WHERE user_id = %s", (user_id,))
+    cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
     db.commit()
     
     return {"message": f"ユーザー {user['email']} を削除しました", "deleted_user_id": user_id}
@@ -329,7 +328,7 @@ async def admin_get_company_employees(current_user = Depends(get_company_admin),
         # 通常のユーザーの場合は自分の会社の社員のデータのみを取得
         # ユーザーの会社IDを取得
         cursor = db.cursor()
-        cursor.execute("SELECT company_id FROM users WHERE id = ?", (current_user["id"],))
+        cursor.execute("SELECT company_id FROM users WHERE id = %s", (current_user["id"],))
         user_row = cursor.fetchone()
         company_id = user_row["company_id"] if user_row else None
         

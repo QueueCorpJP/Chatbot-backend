@@ -44,6 +44,15 @@ def get_db_path():
     """データベースのパスを取得します"""
     return "chatbot.db"
 
+def get_db_params():
+    return {
+        "dbname": "chatbot",
+        "user": "postgres",
+        "password": "Partner123!@#",
+        "host": "localhost",
+        "port": 5432
+    }
+
 # ポート設定
 def get_port():
     """サーバーのポート番号を取得します"""

@@ -5,7 +5,8 @@
 import logging
 import datetime
 from datetime import datetime
-from sqlite3 import Connection
+from psycopg2.extensions import connection as Connection
+from psycopg2.extras import RealDictCursor
 from fastapi import HTTPException, Depends
 from .database import get_db
 from .models import ChatHistoryItem, AnalysisResult, EmployeeUsageResult
@@ -399,11 +400,11 @@ async def get_chat_history(user_id: str = None, db: Connection = Depends(get_db)
     """
     print(f"チャット履歴取得APIが呼び出されました (user_id: {user_id})")
     try:
-        cursor = db.cursor()
+        cursor = db.cursor(cursor_factory=RealDictCursor)
         
         # ユーザーIDが指定されている場合はフィルタリング
         if user_id:
-            cursor.execute("SELECT * FROM chat_history WHERE employee_id = ? ORDER BY timestamp DESC", (user_id,))
+            cursor.execute("SELECT * FROM chat_history WHERE employee_id = %s ORDER BY timestamp DESC", (user_id,))
             print(f"ユーザーID {user_id} でフィルタリングします")
         else:
             cursor.execute("SELECT * FROM chat_history ORDER BY timestamp DESC")
@@ -430,7 +431,7 @@ async def get_chat_history(user_id: str = None, db: Connection = Depends(get_db)
         
         print(f"チャット履歴変換結果: {len(chat_history)}件")
         return chat_history
-        return chat_history
+        
     except Exception as e:
         print(f"チャット履歴取得エラー: {str(e)}")
         import traceback
@@ -439,17 +440,16 @@ async def get_chat_history(user_id: str = None, db: Connection = Depends(get_db)
 
 async def analyze_chats(user_id: str = None, db: Connection = Depends(get_db)):
     """チャット履歴を分析する
-    
     Args:
         user_id: フィルタリングするユーザーID（指定がない場合は全ユーザーのデータを分析）
     """
     print(f"チャット分析APIが呼び出されました (user_id: {user_id})")
     try:
-        cursor = db.cursor()
+        cursor = db.cursor(cursor_factory=RealDictCursor)
         
         # ユーザーIDが指定されている場合はフィルタリング
         if user_id:
-            cursor.execute("SELECT * FROM chat_history WHERE employee_id = ? ORDER BY timestamp DESC", (user_id,))
+            cursor.execute("SELECT * FROM chat_history WHERE employee_id = %s ORDER BY timestamp DESC", (user_id,))
             print(f"ユーザーID {user_id} でフィルタリングします")
         else:
             cursor.execute("SELECT * FROM chat_history ORDER BY timestamp DESC")
@@ -552,15 +552,16 @@ async def analyze_chats(user_id: str = None, db: Connection = Depends(get_db)):
     except Exception as e:
         print(f"チャット分析エラー: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+    
 async def get_employee_details(employee_id: str, db: Connection = Depends(get_db), user_id: str = None):
     """特定の社員の詳細なチャット履歴を取得する"""
     try:
-        cursor = db.cursor()
+        cursor = db.cursor(cursor_factory=RealDictCursor)
         
         # 特別な管理者かどうかを確認
         is_special_admin = False
         if user_id:
-            cursor.execute("SELECT email FROM users WHERE id = ?", (user_id,))
+            cursor.execute("SELECT email FROM users WHERE id = %s", (user_id,))
             user_email_row = cursor.fetchone()
             if user_email_row and user_email_row["email"] == "queue@queuefood.co.jp":
                 is_special_admin = True
@@ -569,12 +570,12 @@ async def get_employee_details(employee_id: str, db: Connection = Depends(get_db
         # 通常の管理者の場合、社員が同じ会社に所属しているか確認
         if not is_special_admin and user_id:
             # ユーザーの会社IDを取得
-            cursor.execute("SELECT company_id FROM users WHERE id = ?", (user_id,))
+            cursor.execute("SELECT company_id FROM users WHERE id = %s", (user_id,))
             user_row = cursor.fetchone()
             user_company_id = user_row["company_id"] if user_row else None
             
             # 社員の会社IDを取得
-            cursor.execute("SELECT company_id FROM users WHERE id = ?", (employee_id,))
+            cursor.execute("SELECT company_id FROM users WHERE id = %s", (employee_id,))
             employee_row = cursor.fetchone()
             employee_company_id = employee_row["company_id"] if employee_row else None
             
@@ -596,7 +597,7 @@ async def get_employee_details(employee_id: str, db: Connection = Depends(get_db
         else:
             cursor.execute("""
             SELECT * FROM chat_history
-            WHERE employee_id = ?
+            WHERE employee_id = %s
             ORDER BY timestamp DESC
             """, (employee_id,))
         
@@ -627,12 +628,12 @@ async def get_employee_details(employee_id: str, db: Connection = Depends(get_db
 async def get_company_employees(user_id: str = None, db: Connection = Depends(get_db), company_id: str = None):
     """会社の全社員情報を取得する"""
     try:
-        cursor = db.cursor()
+        cursor = db.cursor(cursor_factory=RealDictCursor)
         
         # 特別な管理者かどうかを確認
         is_special_admin = False
         if user_id:
-            cursor.execute("SELECT email FROM users WHERE id = ?", (user_id,))
+            cursor.execute("SELECT email FROM users WHERE id = %s", (user_id,))
             user_email_row = cursor.fetchone()
             if user_email_row and user_email_row["email"] == "queue@queuefood.co.jp":
                 is_special_admin = True
@@ -640,7 +641,7 @@ async def get_company_employees(user_id: str = None, db: Connection = Depends(ge
         
         # 会社IDが直接指定されていない場合は、ユーザーの会社IDを取得
         if not company_id and user_id and not is_special_admin:
-            cursor.execute("SELECT company_id FROM users WHERE id = ?", (user_id,))
+            cursor.execute("SELECT company_id FROM users WHERE id = %s", (user_id,))
             user_row = cursor.fetchone()
             if user_row and user_row["company_id"]:
                 company_id = user_row["company_id"]
@@ -681,7 +682,7 @@ async def get_company_employees(user_id: str = None, db: Connection = Depends(ge
                 (SELECT COUNT(*) FROM chat_history WHERE employee_id = users.id) as message_count,
                 (SELECT MAX(timestamp) FROM chat_history WHERE employee_id = users.id) as last_activity
             FROM users
-            WHERE company_id = ?
+            WHERE company_id = %s
             ORDER BY role, name
             """, (company_id,))
         
@@ -696,7 +697,7 @@ async def get_company_employees(user_id: str = None, db: Connection = Depends(ge
                 questions_limit,
                 is_unlimited
             FROM usage_limits
-            WHERE user_id = ?
+            WHERE user_id = %s
             """, (row["id"],))
             
             limits_row = cursor.fetchone()
@@ -728,26 +729,19 @@ async def get_company_employees(user_id: str = None, db: Connection = Depends(ge
         raise HTTPException(status_code=500, detail=str(e))
 
 async def get_employee_usage(user_id: str = None, db: Connection = Depends(get_db), is_special_admin: bool = False):
-    """社員ごとの利用状況を取得する
-    
-    Args:
-        user_id: フィルタリングするユーザーID（指定がない場合は全ユーザーのデータを返す）
-        is_special_admin: 特別な管理者かどうか
-    """
+    """社員ごとの利用状況を取得する"""
     print(f"社員利用状況APIが呼び出されました (user_id: {user_id}, is_special_admin: {is_special_admin})")
     try:
-        cursor = db.cursor()
-        
-        # ユーザーの会社IDを取得
+        cursor = db.cursor(cursor_factory=RealDictCursor)
+
         company_id = None
         if user_id and not is_special_admin:
-            cursor.execute("SELECT company_id FROM users WHERE id = ?", (user_id,))
+            cursor.execute("SELECT company_id FROM users WHERE id = %s", (user_id,))
             user_row = cursor.fetchone()
             if user_row and user_row["company_id"]:
                 company_id = user_row["company_id"]
                 print(f"会社ID {company_id} でフィルタリングします")
-        
-        # 特別な管理者の場合は全ユーザーの利用状況を取得
+
         if is_special_admin:
             cursor.execute("""
             SELECT
@@ -755,13 +749,12 @@ async def get_employee_usage(user_id: str = None, db: Connection = Depends(get_d
                 COALESCE(ch.employee_name, '匿名ユーザー') as employee_name,
                 COUNT(*) as message_count,
                 MAX(ch.timestamp) as last_activity,
-                GROUP_CONCAT(ch.category, ',') as categories
+                STRING_AGG(ch.category, ',') as categories
             FROM chat_history ch
             GROUP BY COALESCE(ch.employee_id, 'anonymous'), COALESCE(ch.employee_name, '匿名ユーザー')
             ORDER BY message_count DESC
             """)
             print("特別な管理者として全ユーザーの利用状況を取得します")
-        # 会社IDがある場合は、その会社の社員の利用状況のみを取得
         elif company_id:
             cursor.execute("""
             SELECT
@@ -769,15 +762,14 @@ async def get_employee_usage(user_id: str = None, db: Connection = Depends(get_d
                 COALESCE(ch.employee_name, '匿名ユーザー') as employee_name,
                 COUNT(*) as message_count,
                 MAX(ch.timestamp) as last_activity,
-                GROUP_CONCAT(ch.category, ',') as categories
+                STRING_AGG(ch.category, ',') as categories
             FROM chat_history ch
             JOIN users u ON ch.employee_id = u.id
-            WHERE u.company_id = ?
+            WHERE u.company_id = %s
             GROUP BY COALESCE(ch.employee_id, 'anonymous'), COALESCE(ch.employee_name, '匿名ユーザー')
             ORDER BY message_count DESC
             """, (company_id,))
             print(f"会社ID {company_id} の社員の利用状況を取得します")
-        # 特定のユーザーの利用状況のみを取得
         else:
             cursor.execute("""
             SELECT
@@ -785,47 +777,37 @@ async def get_employee_usage(user_id: str = None, db: Connection = Depends(get_d
                 COALESCE(employee_name, '匿名ユーザー') as employee_name,
                 COUNT(*) as message_count,
                 MAX(timestamp) as last_activity,
-                GROUP_CONCAT(category, ',') as categories
+                STRING_AGG(category, ',') as categories
             FROM chat_history
-            WHERE employee_id = ?
+            WHERE employee_id = %s
             GROUP BY COALESCE(employee_id, 'anonymous'), COALESCE(employee_name, '匿名ユーザー')
             ORDER BY message_count DESC
             """, (user_id,))
             print(f"ユーザーID {user_id} でフィルタリングします")
-        
+
         employee_rows = cursor.fetchall()
-        
+
         if not employee_rows:
             return {"employee_usage": []}
-        
+
         employee_usage = []
-        
+
         for row in employee_rows:
             employee_id = row["employee_id"]
             employee_name = row["employee_name"]
-            
-            # 社員IDが'anonymous'の場合もデータを表示する
-                
-            # 社員ごとのカテゴリ分布を計算
+
             categories = row["categories"].split(',') if row["categories"] else []
             category_counts = {}
-            
+
             for category in categories:
                 if category:
-                    if category in category_counts:
-                        category_counts[category] += 1
-                    else:
-                        category_counts[category] = 1
-            
-            # 上位カテゴリを取得
-            top_categories = []
-            for category, count in sorted(category_counts.items(), key=lambda x: x[1], reverse=True)[:3]:
-                top_categories.append({
-                    "category": category,
-                    "count": count
-                })
-            
-            # 最近の質問を取得（employee_idが'anonymous'の場合はNULLとして検索）
+                    category_counts[category] = category_counts.get(category, 0) + 1
+
+            top_categories = [
+                {"category": category, "count": count}
+                for category, count in sorted(category_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+            ]
+
             if employee_id == 'anonymous':
                 cursor.execute("""
                 SELECT user_message
@@ -838,13 +820,13 @@ async def get_employee_usage(user_id: str = None, db: Connection = Depends(get_d
                 cursor.execute("""
                 SELECT user_message
                 FROM chat_history
-                WHERE employee_id = ?
+                WHERE employee_id = %s
                 ORDER BY timestamp DESC
                 LIMIT 3
                 """, (employee_id,))
-            
+
             recent_questions = [q["user_message"] for q in cursor.fetchall()]
-            
+
             employee_usage.append({
                 "employee_id": employee_id,
                 "employee_name": employee_name or "名前なし",
@@ -853,7 +835,7 @@ async def get_employee_usage(user_id: str = None, db: Connection = Depends(get_d
                 "top_categories": top_categories,
                 "recent_questions": recent_questions
             })
-        
+
         return {"employee_usage": employee_usage}
     except Exception as e:
         print(f"社員利用状況取得エラー: {str(e)}")

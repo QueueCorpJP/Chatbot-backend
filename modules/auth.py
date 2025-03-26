@@ -6,7 +6,7 @@ import uuid
 import datetime
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from sqlite3 import Connection
+from psycopg2.extensions import connection as Connection
 from .database import get_db, authenticate_user, create_user, get_usage_limits, check_user_exists
 
 security = HTTPBasic()

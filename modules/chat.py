@@ -7,11 +7,12 @@ import re
 import uuid
 from datetime import datetime
 import logging
-from sqlite3 import Connection
+from psycopg2.extensions import connection as Connection
 from fastapi import HTTPException, Depends
 from .company import DEFAULT_COMPANY_NAME
 from .models import ChatMessage, ChatResponse
 from .database import get_db, update_usage_count, get_usage_limits
+# from .database import get_db
 from .knowledge_base import knowledge_base, get_active_resources
 from .auth import check_usage_limits
 
@@ -58,7 +59,7 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
             chat_id = str(uuid.uuid4())
             cursor = db.cursor()
             cursor.execute(
-                "INSERT INTO chat_history (id, user_message, bot_response, timestamp, category, sentiment, employee_id, employee_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO chat_history (id, user_message, bot_response, timestamp, category, sentiment, employee_id, employee_name) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
                 (chat_id, message.text, response_text, datetime.now().isoformat(), "設定エラー", "neutral", message.employee_id, message.employee_name)
             )
             db.commit()
@@ -73,7 +74,7 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
         company_id = None
         if message.user_id:
             cursor = db.cursor()
-            cursor.execute("SELECT company_id FROM users WHERE id = ?", (message.user_id,))
+            cursor.execute("SELECT company_id FROM users WHERE id = %s", (message.user_id,))
             user = cursor.fetchone()
             if user and user['company_id']:
                 company_id = user['company_id']
@@ -93,7 +94,7 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
             chat_id = str(uuid.uuid4())
             cursor = db.cursor()
             cursor.execute(
-                "INSERT INTO chat_history (id, user_message, bot_response, timestamp, category, sentiment, employee_id, employee_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO chat_history (id, user_message, bot_response, timestamp, category, sentiment, employee_id, employee_name) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
                 (chat_id, message.text, response_text, datetime.now().isoformat(), "設定エラー", "neutral", message.employee_id, message.employee_name)
             )
             db.commit()
@@ -306,7 +307,7 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
             chat_id = str(uuid.uuid4())
             cursor = db.cursor()
             cursor.execute(
-                "INSERT INTO chat_history (id, user_message, bot_response, timestamp, category, sentiment, employee_id, employee_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO chat_history (id, user_message, bot_response, timestamp, category, sentiment, employee_id, employee_name) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
                 (chat_id, message.text, response_text, datetime.now().isoformat(), "設定エラー", "neutral", message.employee_id, message.employee_name)
             )
             db.commit()
@@ -399,7 +400,7 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
         chat_id = str(uuid.uuid4())
         cursor = db.cursor()
         cursor.execute(
-            "INSERT INTO chat_history (id, user_message, bot_response, timestamp, category, sentiment, employee_id, employee_name, source_document, source_page) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO chat_history (id, user_message, bot_response, timestamp, category, sentiment, employee_id, employee_name, source_document, source_page) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
             (chat_id, message.text, response_text, datetime.now().isoformat(), category, sentiment, message.employee_id, message.employee_name, source_doc, source_page)
         )
         db.commit()

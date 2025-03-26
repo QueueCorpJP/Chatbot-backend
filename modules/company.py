@@ -5,7 +5,7 @@
 import os
 import logging
 from fastapi import HTTPException, Depends
-from sqlite3 import Connection
+from psycopg2.extensions import connection as Connection
 from .models import CompanyNameResponse, CompanyNameRequest
 from .database import get_db, get_company_by_id
 
@@ -115,7 +115,7 @@ async def set_company_name(request: CompanyNameRequest, user=None, db: Connectio
     elif user.get("company_id"):
         cursor = db.cursor()
         cursor.execute(
-            "UPDATE companies SET name = ? WHERE id = ?",
+            "UPDATE companies SET name = %s WHERE id = %s",
             (new_company_name, user["company_id"])
         )
         db.commit()

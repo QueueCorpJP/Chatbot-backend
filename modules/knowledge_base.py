@@ -16,7 +16,7 @@ import base64
 import google.generativeai as genai
 from PIL import Image
 from .company import DEFAULT_COMPANY_NAME
-from sqlite3 import Connection
+from psycopg2.extensions import connection as Connection
 from .database import get_db, update_usage_count
 from .auth import check_usage_limits
 import uuid
@@ -119,7 +119,7 @@ async def process_url(url: str, user_id: str = None, company_id: str = None, db:
         # ユーザーIDからcompany_idとroleを取得（指定されていない場合）
         if user_id:
             cursor = db.cursor()
-            cursor.execute("SELECT company_id, role FROM users WHERE id = ?", (user_id,))
+            cursor.execute("SELECT company_id, role FROM users WHERE id = %s", (user_id,))
             user = cursor.fetchone()
             
             # 社員アカウントはドキュメントをアップロードできない
@@ -203,7 +203,7 @@ async def process_url(url: str, user_id: str = None, company_id: str = None, db:
             document_id = str(uuid.uuid4())
             cursor = db.cursor()
             cursor.execute(
-                "INSERT INTO document_sources (id, name, type, uploaded_by, company_id, uploaded_at, active) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO document_sources (id, name, type, uploaded_by, company_id, uploaded_at, active) VALUES (%s, %s, %s, %s, %s, %s, %s)",
                 (document_id, url, "URL", user_id, company_id, datetime.now().isoformat(), 1)
             )
             
@@ -244,7 +244,7 @@ async def process_file(file: UploadFile = File(...), user_id: str = None, compan
     # ユーザーIDからcompany_idとroleを取得（指定されていない場合）
     if user_id:
         cursor = db.cursor()
-        cursor.execute("SELECT company_id, role FROM users WHERE id = ?", (user_id,))
+        cursor.execute("SELECT company_id, role FROM users WHERE id = %s", (user_id,))
         user = cursor.fetchone()
         
         # 社員アカウントはドキュメントをアップロードできない
@@ -411,7 +411,7 @@ async def process_file(file: UploadFile = File(...), user_id: str = None, compan
             
             cursor = db.cursor()
             cursor.execute(
-                "INSERT INTO document_sources (id, name, type, page_count, uploaded_by, company_id, uploaded_at, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO document_sources (id, name, type, page_count, uploaded_by, company_id, uploaded_at, active) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
                 (document_id, file.filename, file_extension.upper(), page_count, user_id, company_id, datetime.now().isoformat(), 1)
             )
             
