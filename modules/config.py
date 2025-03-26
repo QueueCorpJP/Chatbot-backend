@@ -43,7 +43,7 @@ def get_db_params():
     return {
         "dbname": "chatbot",
         "user": "postgres",
-        "password": "",
+        "password": "Partner123!@#",
         "host": "localhost",
         "port": 5432
     }
