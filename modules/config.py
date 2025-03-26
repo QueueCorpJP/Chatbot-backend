@@ -39,16 +39,11 @@ def setup_gemini():
     model = genai.GenerativeModel('gemini-2.0-flash-exp')
     return model
 
-# データベースの設定
-def get_db_path():
-    """データベースのパスを取得します"""
-    return "chatbot.db"
-
 def get_db_params():
     return {
         "dbname": "chatbot",
         "user": "postgres",
-        "password": "Partner123!@#",
+        "password": "",
         "host": "localhost",
         "port": 5432
     }

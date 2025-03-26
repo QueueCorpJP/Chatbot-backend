@@ -623,8 +623,7 @@ async def get_employee_details(employee_id: str, db: Connection = Depends(get_db
     except Exception as e:
         print(f"社員詳細取得エラー: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-        print(f"社員詳細取得エラー: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        
 async def get_company_employees(user_id: str = None, db: Connection = Depends(get_db), company_id: str = None):
     """会社の全社員情報を取得する"""
     try:
