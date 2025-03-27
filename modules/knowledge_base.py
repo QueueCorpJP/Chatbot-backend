@@ -20,11 +20,15 @@ from psycopg2.extensions import connection as Connection
 from .database import get_db, update_usage_count
 from .auth import check_usage_limits
 import uuid
+from pdf2image import convert_from_bytes 
+from modules.config import setup_gemini
 
 logger = logging.getLogger(__name__)
 
 import datetime
 from datetime import datetime
+
+model = setup_gemini()
 
 # 知識ベースの保存用クラス
 class KnowledgeBase:
@@ -412,7 +416,7 @@ async def process_file(file: UploadFile = File(...), user_id: str = None, compan
             cursor = db.cursor()
             cursor.execute(
                 "INSERT INTO document_sources (id, name, type, page_count, uploaded_by, company_id, uploaded_at, active) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-                (document_id, file.filename, file_extension.upper(), page_count, user_id, company_id, datetime.now().isoformat(), 1)
+                (document_id, file.filename, file_extension.upper(), page_count, user_id, company_id, datetime.now().isoformat(), True)
             )
             
             # 会社のソースリストに追加
@@ -653,14 +657,25 @@ def _process_pdf_file(contents, filename):
                 'url': None
             })
         
-        # データフレームを作成
-        result_df = pd.DataFrame(all_data) if all_data else pd.DataFrame({
-            'section': ["一般情報"],
-            'content': [all_text],
-            'source': ['PDF'],
-            'file': [filename],
-            'url': [None]
-        })
+        if all_text == "":
+            all_text = ocr_pdf_to_text_from_bytes(contents)
+            print(all_text)
+            result_df = pd.DataFrame(all_data) if all_data else pd.DataFrame({
+                'section': ["一般情報"],
+                'content': [all_text],
+                'source': ['PDF'],
+                'file': [filename],
+                'url': [None]
+            })
+        else: 
+            # データフレームを作成
+            result_df = pd.DataFrame(all_data) if all_data else pd.DataFrame({
+                'section': ["一般情報"],
+                'content': [all_text],
+                'source': ['PDF'],
+                'file': [filename],
+                'url': [None]
+            })
         
         return result_df, sections, extracted_text
     except Exception as e:
@@ -861,5 +876,48 @@ async def get_uploaded_resources():
         "message": f"{len(resources)}件のリソースが見つかりました"
     }
 
+# using gemini ocr 
+def ocr_with_gemini(images, instruction):
+    prompt = f"""
+    {instruction}
+    These are pages from a PDF document. Extract all text content while preserving the structure.
+    Pay special attention to tables, columns, headers, and any structured content.
+    Maintain paragraph breaks and formatting.
+    """
+    # Assuming `model.generate_content` works with images and a prompt
+    response = model.generate_content([prompt, *images])  # Passing the image objects directly
+    return response.text
+
+# Main OCR function
+def ocr_pdf_to_text_from_bytes(pdf_content: bytes):
+    # Convert PDF to images directly from bytes
+    images = convert_pdf_to_images_from_bytes(pdf_content)
+
+    # Define instruction for Gemini OCR
+    instruction = """
+    Extract ALL text content from these document pages.
+    For tables:
+    1. Maintain the table structure using markdown table format.
+    2. Preserve all column headers and row labels.
+    3. Ensure numerical data is accurately captured.
+    For multi-column layouts:
+    1. Process columns from left to right.
+    2. Clearly separate content from different columns.
+    For charts and graphs:
+    1. Describe the chart type.
+    2. Extract any visible axis labels, legends, and data points.
+    3. Extract any title or caption.
+    Preserve all headers, footers, page numbers, and footnotes.
+    """
+
+    # Extract text using Gemini OCR
+    extracted_text = ocr_with_gemini(images, instruction)
+
+    return extracted_text
+
+# Convert PDF to images directly from bytes
+def convert_pdf_to_images_from_bytes(pdf_content, dpi=300):
+    images = convert_from_bytes(pdf_content, dpi=dpi)
+    return images  # This will return a list of PIL Image objects
 # 以下は既存の処理関数（_process_excel_file, _process_pdf_file, _process_txt_file, _extract_text_from_image_with_gemini）
 # これらの関数は変更せず、そのまま使用します
