@@ -886,7 +886,13 @@ def ocr_with_gemini(images, instruction):
     """
     # Assuming `model.generate_content` works with images and a prompt
     response = model.generate_content([prompt, *images])  # Passing the image objects directly
-    return response.text
+
+    # Combine all text parts if it's a multi-part response
+    full_text = ""
+    for part in response.parts:
+        full_text += part.text
+
+    return full_text
 
 # Main OCR function
 def ocr_pdf_to_text_from_bytes(pdf_content: bytes):
