@@ -340,6 +340,81 @@ async def toggle_resource_active(resource_name: str):
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
+async def delete_resource(resource_name: str):
+    """リソースを削除する"""
+    try:
+        print(f"リソース削除APIが呼び出されました: {resource_name}")
+        
+        # 完全一致のチェック
+        resource_found = resource_name in knowledge_base.sources
+        
+        # 完全一致しない場合は、部分一致でもチェック
+        if not resource_found:
+            for source in knowledge_base.sources:
+                if resource_name in source or source in resource_name:
+                    resource_name = source
+                    resource_found = True
+                    print(f"部分一致するリソースが見つかりました: {source}")
+                    break
+        
+        # それでも見つからない場合はエラー
+        if not resource_found:
+            raise HTTPException(
+                status_code=404,
+                detail=f"リソース '{resource_name}' が見つかりません。"
+            )
+        
+        # リソースを削除
+        print(f"リソース '{resource_name}' を削除します")
+        
+        # ソースリストから削除
+        if resource_name in knowledge_base.sources:
+            knowledge_base.sources.remove(resource_name)
+        
+        # ソース情報から削除
+        if resource_name in knowledge_base.source_info:
+            del knowledge_base.source_info[resource_name]
+        
+        # 元のデータから削除
+        if resource_name in knowledge_base.original_data:
+            del knowledge_base.original_data[resource_name]
+        
+        # 会社ごとのソースから削除
+        for company_id, sources in knowledge_base.company_sources.items():
+            if resource_name in sources:
+                knowledge_base.company_sources[company_id].remove(resource_name)
+        
+        # 知識ベースを完全にリセット
+        print("知識ベースを完全にリセットします")
+        knowledge_base.data = None
+        knowledge_base.raw_text = ""
+        knowledge_base.columns = []
+        knowledge_base.url_data = []
+        knowledge_base.url_texts = []
+        knowledge_base.file_data = []
+        knowledge_base.file_texts = []
+        
+        # 知識ベースをリフレッシュ
+        await refresh_knowledge_base()
+        
+        # リフレッシュ後の状態を確認
+        print(f"リフレッシュ後のデータフレームサイズ: {len(knowledge_base.data) if knowledge_base.data is not None else 0} 行")
+        print(f"リフレッシュ後のURLデータ数: {len(knowledge_base.url_data)}")
+        print(f"リフレッシュ後のファイルデータ数: {len(knowledge_base.file_data)}")
+        
+        return {
+            "name": resource_name,
+            "message": f"リソース '{resource_name}' を削除しました"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"リソース削除エラー: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 async def get_uploaded_resources():
     """アップロードされたリソース（URL、PDF、Excel、TXT）の情報を取得する"""
     try:

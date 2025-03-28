@@ -28,7 +28,7 @@ from modules.chat import process_chat, set_model as set_chat_model
 from modules.admin import (
     get_chat_history, analyze_chats, get_employee_details,
     get_employee_usage, get_uploaded_resources, toggle_resource_active,
-    get_company_employees, set_model as set_admin_model
+    get_company_employees, set_model as set_admin_model, delete_resource
 )
 from modules.company import get_company_name, set_company_name
 from modules.auth import get_current_user, get_current_admin, register_new_user, get_admin_or_user, get_company_admin
@@ -359,10 +359,24 @@ async def admin_get_resources(current_user = Depends(get_admin_or_user)):
     return await get_uploaded_resources()
 
 # リソースのアクティブ状態を切り替えるエンドポイント
-@app.post("/chatbot/api/admin/resources/{resource_name}/toggle", response_model=ResourceToggleResponse)
+@app.post("/chatbot/api/admin/resources/{resource_name:path}/toggle", response_model=ResourceToggleResponse)
 async def admin_toggle_resource(resource_name: str, current_user = Depends(get_admin_or_user)):
     """リソースのアクティブ状態を切り替える"""
-    return await toggle_resource_active(resource_name)
+    # URLデコード
+    import urllib.parse
+    decoded_name = urllib.parse.unquote(resource_name)
+    print(f"トグルリクエスト: {resource_name} -> デコード後: {decoded_name}")
+    return await toggle_resource_active(decoded_name)
+
+# リソースを削除するエンドポイント
+@app.delete("/chatbot/api/admin/resources/{resource_name:path}", response_model=dict)
+async def admin_delete_resource(resource_name: str, current_user = Depends(get_admin_or_user)):
+    """リソースを削除する"""
+    # URLデコード
+    import urllib.parse
+    decoded_name = urllib.parse.unquote(resource_name)
+    print(f"削除リクエスト: {resource_name} -> デコード後: {decoded_name}")
+    return await delete_resource(decoded_name)
 
 # 会社名を取得するエンドポイント
 @app.get("/chatbot/api/company-name", response_model=CompanyNameResponse)

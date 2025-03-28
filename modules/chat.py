@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime
 import logging
 from psycopg2.extensions import connection as Connection
+from psycopg2.extras import RealDictCursor
 from fastapi import HTTPException, Depends
 from .company import DEFAULT_COMPANY_NAME
 from .models import ChatMessage, ChatResponse
@@ -318,6 +319,44 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
                 "limit_reached": limit_reached
             }
             
+        # 直近のメッセージを取得（最大5件）
+        recent_messages = []
+        try:
+            if message.user_id:
+                with db.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute(
+                        """
+                        SELECT user_message, bot_response
+                        FROM chat_history
+                        WHERE employee_id = %s
+                        ORDER BY timestamp DESC
+                        LIMIT 5
+                        """,
+                        (message.user_id,)
+                    )
+                    recent_messages = cursor.fetchall()
+                    # 古い順に並べ替え
+                    recent_messages.reverse()
+        except Exception as e:
+            print(f"会話履歴取得エラー: {str(e)}")
+            recent_messages = []
+        
+        # 会話履歴の構築
+        conversation_history = ""
+        if recent_messages:
+            conversation_history = "直近の会話履歴：\n"
+            for idx, msg in enumerate(recent_messages):
+                
+                try:
+                    user_msg = msg.get('user_message', '') or ''
+                    bot_msg = msg.get('bot_response', '') or ''
+                    conversation_history += f"ユーザー: {user_msg}\n"
+                    conversation_history += f"アシスタント: {bot_msg}\n\n"
+                except Exception as e:
+                    print(f"会話履歴処理エラー: {str(e)}")
+                    # エラーが発生した場合はその行をスキップ
+                    continue
+
         # プロンプトの作成
         prompt = f"""
         あなたは親切で丁寧な対応ができる{current_company_name}のアシスタントです。
@@ -326,12 +365,13 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
         回答の際の注意点：
         1. 常に丁寧な言葉遣いを心がけ、ユーザーに対して敬意を持って接してください
         2. 知識ベースに情報がない場合でも、一般的な文脈で回答できる場合は適切に対応してください
-        3. 具体的な情報が必要な場合は、どのような情報があれば回答できるかを説明してください
+        3. ユーザーが「もっと詳しく」などと質問した場合は、前回の回答内容に関連する詳細情報を提供してください。「どのような情報について詳しく知りたいですか？」などと聞き返さないでください。
         4. 可能な限り具体的で実用的な情報を提供してください
         5. 知識ベースにOCRで抽出されたテキスト（PDF (OCR)と表示されている部分）が含まれている場合は、それが画像から抽出されたテキストであることを考慮してください
         6. OCRで抽出されたテキストには多少の誤りがある可能性がありますが、文脈から適切に解釈して回答してください
-        7. 回答の最後に、情報の出典を「情報ソース: [ドキュメント名]（[セクション名]、[ページ番号]）」の形式で必ず記載してください。複数のソースを参照した場合は、それぞれを記載してください。
-
+        7. 知識ベースの情報を使用して回答した場合は、回答の最後に情報の出典を「情報ソース: [ドキュメント名]（[セクション名]、[ページ番号]）」の形式で必ず記載してください。複数のソースを参照した場合は、それぞれを記載してください。
+        8. 「こんにちは」「おはよう」などの単純な挨拶のみの場合は、情報ソースを記載しないでください。それ以外の質問には基本的に情報ソースを記載してください。
+        
         利用可能なデータ列：
         {', '.join(knowledge_base.columns)}
 
@@ -339,6 +379,8 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
         {active_knowledge_text}
 
         {f"画像情報：PDFから抽出された画像が{len(knowledge_base.images)}枚あります。" if hasattr(knowledge_base, 'images') and knowledge_base.images else ""}
+
+        {conversation_history}
 
         ユーザーの質問：
         {message.text}
@@ -350,11 +392,16 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
         
         # カテゴリと感情を分析するプロンプト
         analysis_prompt = f"""
-        以下のユーザーの質問を分析し、以下の情報を提供してください：
-        1. カテゴリ: 質問のカテゴリを1つだけ選んでください（観光情報、交通案内、ショッピング、飲食店、イベント情報、その他）
+        以下のユーザーの質問と回答を分析し、以下の情報を提供してください：
+        1. カテゴリ: 質問のカテゴリを1つだけ選んでください（観光情報、交通案内、ショッピング、飲食店、イベント情報、挨拶、一般的な会話、その他、未分類）
         2. 感情: ユーザーの感情を1つだけ選んでください（ポジティブ、ネガティブ、ニュートラル）
         3. 参照ソース: 回答に使用した主なソース情報を1つ選んでください。以下のソース情報から選択してください：
         {json.dumps(list(source_info.values()))}
+
+        重要:
+        - 参照ソースの選択は、回答の内容と最も関連性の高いソースを選んでください。回答の内容が特定のソースから直接引用されている場合は、そのソースを選択してください。
+        - 「こんにちは」「おはよう」などの単純な挨拶のみの場合のみ、カテゴリを「挨拶」に設定し、参照ソースは空にしてください。
+        - それ以外の質問には、基本的に参照ソースを設定してください。知識ベースの情報を使用している場合は、必ず適切なソースを選択してください。
 
         回答は以下のJSON形式で返してください：
         {{
@@ -369,6 +416,9 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
 
         ユーザーの質問：
         {message.text}
+
+        生成された回答：
+        {response_text}
         """
         
         # 分析の実行
@@ -389,6 +439,19 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
             sentiment = analysis_json.get("sentiment", "neutral")
             source_doc = analysis_json.get("source", {}).get("name", "")
             source_page = analysis_json.get("source", {}).get("page", "")
+
+            # 単純な挨拶のみの場合はソース情報をクリア
+            message_text = message.text.strip().lower() if message.text else ""
+            greetings = ["こんにちは", "こんにちわ", "おはよう", "おはようございます", "こんばんは", "よろしく", "ありがとう", "さようなら", "hello", "hi", "thanks", "thank you", "bye"]
+            
+            if category == "挨拶" or any(greeting in message_text for greeting in greetings):
+                # 応答テキストに「情報ソース:」が含まれているかチェック
+                if response_text and "情報ソース:" in response_text:
+                    # 情報ソース部分を削除
+                    response_text = re.sub(r'\n*情報ソース:.*$', '', response_text, flags=re.DOTALL)
+                source_doc = ""
+                source_page = ""
+                
         except Exception as json_error:
             print(f"JSON解析エラー: {str(json_error)}")
             category = "未分類"
