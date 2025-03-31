@@ -22,6 +22,7 @@ from .auth import check_usage_limits
 import uuid
 from pdf2image import convert_from_bytes 
 from modules.config import setup_gemini
+from .utils import transcribe_youtube_video, extract_text_from_html
 
 logger = logging.getLogger(__name__)
 
@@ -86,33 +87,10 @@ def extract_text_from_url(url: str) -> str:
         # URLが有効かチェック
         if not url.startswith(('http://', 'https://')):
             url = 'https://' + url
-            
-        # ユーザーエージェントを設定してリクエスト
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()  # エラーがあれば例外を発生
-        
-        # HTMLをパース
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # 不要なタグを削除
-        for tag in soup(['script', 'style', 'meta', 'link', 'noscript', 'header', 'footer', 'nav']):
-            tag.decompose()
-        
-        # テキストを抽出
-        text = soup.get_text(separator='\n')
-        
-        # 余分な空白と改行を整理
-        text = re.sub(r'\n+', '\n', text)
-        text = re.sub(r' +', ' ', text)
-        
-        # タイトルを取得
-        title = soup.title.string if soup.title else "タイトルなし"
-        
-        # URLとタイトルを含めたテキストを返す
-        return f"=== URL: {url} ===\n=== タイトル: {title} ===\n\n{text}"
+        if 'youtube.com' in url or 'youtu.be' in url:
+            return transcribe_youtube_video(url)
+        else:
+            return extract_text_from_html(url)
     except Exception as e:
         print(f"URLからのテキスト抽出エラー: {str(e)}")
         return f"=== URL: {url} ===\n=== エラー: {str(e)} ===\n"
