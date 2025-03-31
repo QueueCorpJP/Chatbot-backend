@@ -35,7 +35,7 @@ def upload_youtube_audio_to_s3(youtube_url: str, s3_key: str) -> str:
             'format': 'bestaudio/best',
             'quiet': True,
             'noplaylist': True,
-            'cookiefile': '/ec2-user/Chatbot/Chatbot-backend/cookies_txt-0.8.xpi',
+            'cookiefile': '/home/ec2-user/Chatbot/Chatbot-backend/cookies_txt-0.8.xpi',
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
