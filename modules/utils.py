@@ -9,6 +9,7 @@ from io import BytesIO
 from urllib.parse import quote
 import yt_dlp
 import subprocess
+from pytube import YouTube
 
 # 環境変数の読み込み
 load_dotenv()
