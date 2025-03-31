@@ -68,7 +68,8 @@ def upload_youtube_audio_to_s3(youtube_url: str, s3_key: str) -> str:
         if process.returncode != 0:
             print(f"FFmpeg stderr: {stderr.decode('utf-8', errors='ignore')}")
             return 'null'
-        buffer.write(process.communicate()[0])
+        # buffer.write(process.communicate()[0])
+        buffer.write(stdout.encode('utf-8'))
         buffer.seek(0)
 
         print(f"before boto3")
