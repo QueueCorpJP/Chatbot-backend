@@ -37,13 +37,14 @@ def upload_youtube_audio_to_s3(youtube_url: str, s3_key: str) -> str:
             'quiet': True,
             'noplaylist': True,
             'cookiefile': '/home/ec2-user/Chatbot/Chatbot-backend/cookies_txt-0.8.xpi',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }],
+#            'postprocessors': [{
+#                'key': 'FFmpegExtractAudio',
+#                'preferredcodec': 'mp3',
+#                'preferredquality': '192',
+#            }],
             'logtostderr': True,
         }
+        print(f"after opts")
 
         # with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         #     info = ydl.extract_info(youtube_url, download=False)
