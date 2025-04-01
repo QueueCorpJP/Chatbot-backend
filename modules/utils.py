@@ -36,7 +36,7 @@ def upload_youtube_audio_to_s3(youtube_url: str, s3_key: str) -> str:
             'format': 'bestaudio/best',
             'quiet': True,
             'noplaylist': True,
-            'cookiefile': '/home/ec2-user/Chatbot/Chatbot-backend/cookies_txt-0.8.xpi',
+            # 'cookiefile': '/home/ec2-user/Chatbot/Chatbot-backend/cookies_txt-0.8.xpi',
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
@@ -45,9 +45,20 @@ def upload_youtube_audio_to_s3(youtube_url: str, s3_key: str) -> str:
             'logtostderr': False,
         }
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(youtube_url, download=False)
-            audio_url = info['url']
+        # with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        #     info = ydl.extract_info(youtube_url, download=False)
+        #     audio_url = info['url']
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(youtube_url, download=False)
+                audio_url = info['url']
+        except yt_dlp.cookies.CookieLoadError as e:
+            print(f"Warning: Failed to load cookies: {e}")
+            # You could decide to continue without cookies or handle the error differently.
+            with yt_dlp.YoutubeDL({**ydl_opts, 'cookiefile': None}) as ydl:
+                info = ydl.extract_info(youtube_url, download=False)
+                audio_url = info['url']
+
 
         buffer = BytesIO()
         # ffmpeg_cmd = [
