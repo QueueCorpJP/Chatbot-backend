@@ -10,6 +10,7 @@ from urllib.parse import quote
 import yt_dlp
 import subprocess
 from pytube import YouTube
+import traceback
 
 # 環境変数の読み込み
 load_dotenv()
@@ -66,7 +67,7 @@ def upload_youtube_audio_to_s3(youtube_url: str, s3_key: str) -> str:
         stdout, stderr = process.communicate()  # Capture both stdout and stderr
         
         if process.returncode != 0:
-            print(f"FFmpeg stderr: {stderr.decode('utf-8', errors='ignore')}")
+            print(f"FFmpeg stderr: {stderr}")
             return 'null'
         # buffer.write(process.communicate()[0])
         buffer.write(stdout)
@@ -84,6 +85,7 @@ def upload_youtube_audio_to_s3(youtube_url: str, s3_key: str) -> str:
         return f"https://{S3_BUCKET_NAME}.s3.{S3_REGION}.amazonaws.com/{quote(s3_key)}"
     except Exception as e:
         print('Error in upload_youtube_audio_to_s3:::', e)
+        print(traceback.format_exc())
         return 'null'
 
 
