@@ -44,8 +44,7 @@ def upload_youtube_audio_to_s3(youtube_url: str, s3_key: str) -> str:
 #            }],
             'logtostderr': True,
         }
-        print(f"after opts")
-
+        
         # with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         #     info = ydl.extract_info(youtube_url, download=False)
         #     audio_url = info['url']
@@ -59,9 +58,7 @@ def upload_youtube_audio_to_s3(youtube_url: str, s3_key: str) -> str:
             with yt_dlp.YoutubeDL({**ydl_opts, 'cookiefile': None}) as ydl:
                 info = ydl.extract_info(youtube_url, download=False)
                 audio_url = info['url']
-
-
-        buffer = BytesIO()
+        print(f"after yt_dlp")
         # ffmpeg_cmd = [
         #     r'C:\ffmpeg\bin\ffmpeg.exe', '-i', audio_url,
         #     '-f', 'mp3', '-ab', '192k',
@@ -69,7 +66,7 @@ def upload_youtube_audio_to_s3(youtube_url: str, s3_key: str) -> str:
         #     'pipe:1'  # Output to stdout
         # ]
         ffmpeg_cmd = [
-            'ffmpeg', '-i', audio_url,
+            '/usr/local/bin/ffmpeg', '-i', audio_url,
             '-f', 'mp3', '-ab', '192k',
             '-hide_banner', '-loglevel', 'error',
             'pipe:1'  # Output to stdout
