@@ -79,9 +79,11 @@ def upload_youtube_audio_to_s3(youtube_url: str, s3_key: str) -> str:
         stdout, stderr = process.communicate()  # Capture both stdout and stderr
         
         if process.returncode != 0:
-            print(f"FFmpeg stderr: {stderr.decode('utf-8', errors='ignore')}")
+            try:
+                print(f"FFmpeg stderr: {stderr.decode('utf-8')}")
+            except UnicodeDecodeError:
+                print(f"FFmpeg stderr: {stderr.decode('iso-8859-1', errors='ignore')}")
             return 'null'
-        # buffer.write(process.communicate()[0])
         buffer.write(stdout)
         buffer.seek(0)
 
