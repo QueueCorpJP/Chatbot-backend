@@ -42,7 +42,7 @@ def upload_youtube_audio_to_s3(youtube_url: str, s3_key: str) -> str:
                 'preferredcodec': 'mp3',
                 'preferredquality': '192',
             }],
-            'logtostderr': False,
+            'logtostderr': True,
         }
 
         # with yt_dlp.YoutubeDL(ydl_opts) as ydl:
