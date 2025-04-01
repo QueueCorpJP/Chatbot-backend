@@ -36,7 +36,8 @@ def upload_youtube_audio_to_s3(youtube_url: str, s3_key: str) -> str:
             'format': 'bestaudio/best',
             'quiet': True,
             'noplaylist': True,
-            'cookiefile': '/home/ec2-user/Chatbot/Chatbot-backend/cookies_txt-0.8.xpi',
+            # 'cookiefile': '/home/ec2-user/Chatbot/Chatbot-backend/cookies_txt-0.8.xpi',
+            'cookiefile': '/home/ec2-user/Chatbot/Chatbot-backend/cookies.txt',
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
@@ -78,7 +79,7 @@ def upload_youtube_audio_to_s3(youtube_url: str, s3_key: str) -> str:
         stdout, stderr = process.communicate()  # Capture both stdout and stderr
         
         if process.returncode != 0:
-            print(f"FFmpeg stderr: {stderr.decode('utf-8', errors='replace')}")
+            print(f"FFmpeg stderr: {stderr.decode('utf-8', errors='ignore')}")
             return 'null'
         # buffer.write(process.communicate()[0])
         buffer.write(stdout)
