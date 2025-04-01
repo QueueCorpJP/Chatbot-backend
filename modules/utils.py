@@ -96,7 +96,7 @@ def upload_youtube_audio_to_s3(youtube_url: str, s3_key: str) -> str:
         return f"https://{S3_BUCKET_NAME}.s3.{S3_REGION}.amazonaws.com/{quote(s3_key)}"
     except Exception as e:
         print('Error in upload_youtube_audio_to_s3:::', e)
-        print(traceback.format_exc())
+        # print(traceback.format_exc())
         return 'null'
 
 
