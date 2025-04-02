@@ -2,12 +2,12 @@ import requests
 import re
 from bs4 import BeautifulSoup
 from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api.proxies import GenericProxyConfig
+from youtube_transcript_api.proxies import WebshareProxyConfig
 
 ytt_api = YouTubeTranscriptApi(
-    proxy_config=GenericProxyConfig(
-        http_url="http://3f19decfe19f814c:RNW78Fm5@res.proxy-seller.com:10000",
-        https_url="https://3f19decfe19f814c:RNW78Fm5@res.proxy-seller.com:10000",
+    proxy_config=WebshareProxyConfig(
+        proxy_username="xvxgfoll",
+        proxy_password="t629a21sw1rt",
     )
 )
 # Function to extract video ID from a full YouTube URL
