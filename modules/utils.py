@@ -14,6 +14,7 @@ def transcribe_youtube_video(youtube_url: str) -> str:
         print(full_text)
         return full_text
     except Exception as e:
+        print(f"Error: {str(e)}")
         return f"Error: {str(e)}"
 
 # Function to extract video ID from a full YouTube URL
