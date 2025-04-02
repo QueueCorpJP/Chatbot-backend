@@ -22,7 +22,7 @@ from .auth import check_usage_limits
 import uuid
 from pdf2image import convert_from_bytes 
 from modules.config import setup_gemini
-from .utils import transcribe_youtube_video, extract_text_from_html
+from .utils import transcribe_youtube_video, extract_text_from_html, _process_video_file
 
 logger = logging.getLogger(__name__)
 
@@ -309,6 +309,16 @@ async def process_file(file: UploadFile = File(...), user_id: str = None, compan
                 print(f"テキストファイル処理開始: {file.filename}")
                 df, sections, extracted_text = _process_txt_file(contents, file.filename)
                 print(f"テキストファイル処理完了: {len(df)} 行のデータを抽出")
+
+            # elif file_extension in ['.avi', 'mp4', '.webm']:
+            #     if file_size_mb > 500:
+            #         raise HTTPException(
+            #             status_code=400,
+            #             detail=f"ビデオファイルが大きすぎます ({file_size_mb:.2f} MB)。500MB以下のファイルを使用するか、ファイルを分割してください。"
+            #         )
+                
+            #     df, sections, extracted_text = _process_video_file(contents, file.filename)
+            #     print(f"PDFファイル処理完了: {len(df)} 行のデータを抽出")
                 
             # データフレームの内容を確認
             if df is not None and not df.empty:
