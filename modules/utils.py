@@ -22,8 +22,10 @@ def transcribe_youtube_video(youtube_url: str) -> str:
         return "Invalid YouTube URL."
     
     try:
-        transcript = ytt_api.get_transcript(video_id)
-        full_text = "\n".join([item['text'] for item in transcript])
+        transcript = ytt_api.fetch(video_id)
+
+        full_text = "\n".join([snippet.text for snippet in transcript.snippets])
+
         print(full_text)
         return full_text
     except Exception as e:
