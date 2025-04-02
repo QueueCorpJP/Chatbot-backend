@@ -4,6 +4,9 @@ from bs4 import BeautifulSoup
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.proxies import WebshareProxyConfig
 from io import BytesIO
+import pandas as pd
+import time
+
 
 ytt_api = YouTubeTranscriptApi(
     proxy_config=WebshareProxyConfig(
@@ -27,7 +30,6 @@ def transcribe_youtube_video(youtube_url: str) -> str:
 
         full_text = "\n".join([snippet.text for snippet in transcript.snippets])
 
-        print(full_text)
         return full_text
     except Exception as e:
         print(f"Error: {str(e)}")
@@ -59,78 +61,91 @@ def extract_text_from_html(url: str) -> str:
     # URLとタイトルを含めたテキストを返す
     return f"=== URL: {url} ===\n=== タイトル: {title} ===\n\n{text}"
 
-
-# Excelファイルを処理する内部関数
 def _process_video_file(contents, filename):
     """Excelファイルを処理してデータフレーム、セクション、テキストを返す"""
     try:
-        # BytesIOオブジェクトを作成
-        excel_file = BytesIO(contents)
+        video_file = BytesIO(contents)
         
-        # Excelファイルを読み込む
-        df_dict = pd.read_excel(excel_file, sheet_name=None)
-        
-        # 全シートのデータを結合
-        all_data = []
+        df_dict = transcribe_video_file(video_file)
         sections = {}
         extracted_text = f"=== ファイル: {filename} ===\n\n"
-        
-        for sheet_name, sheet_df in df_dict.items():
-            # シート名をセクションとして追加
-            section_name = f"シート: {sheet_name}"
-            sections[section_name] = sheet_df.to_string(index=False)
-            extracted_text += f"=== {section_name} ===\n{sheet_df.to_string(index=False)}\n\n"
-            
-            # 各行のすべての内容を結合して content 列を作成
-            for _, row in sheet_df.iterrows():
-                row_dict = row.to_dict()
-                
-                # content 列を作成（すべての列の値を結合）
-                content_parts = []
-                for col, val in row_dict.items():
-                    if not pd.isna(val):  # NaN値をスキップ
-                        content_parts.append(f"{val}")
-                
-                # 結合したコンテンツを設定
-                row_dict['content'] = " ".join(str(part) for part in content_parts if part)
-                
-                # メタデータを追加
-                row_dict['section'] = section_name
-                row_dict['source'] = 'Excel'
-                row_dict['file'] = filename
-                row_dict['url'] = None
-                all_data.append(row_dict)
-        
-        # データフレームを作成
-        result_df = pd.DataFrame(all_data) if all_data else pd.DataFrame({
-            'section': [], 'content': [], 'source': [], 'file': [], 'url': []
+
+        result_df = pd.DataFrame({
+            'section': ["一般情報"], 'content': [df_dict], 'source': ['Video'], 'file': [filename], 'url': [None]
         })
-        
-        # 必須列が存在することを確認
-        for col in ['section', 'source', 'file', 'url', 'content']:
-            if col not in result_df.columns:
-                if col == 'source':
-                    result_df[col] = 'Excel'
-                elif col == 'file':
-                    result_df[col] = filename
-                elif col == 'content':
-                    # 各行の全ての列の値を結合して content 列を作成
-                    if not result_df.empty:
-                        result_df[col] = result_df.apply(
-                            lambda row: " ".join(str(val) for val in row.values if not pd.isna(val)),
-                            axis=1
-                        )
-                else:
-                    result_df[col] = None
-        
-        # デバッグ情報を出力
-        print(f"処理後のデータフレーム列: {result_df.columns.tolist()}")
-        if not result_df.empty:
-            print(f"最初の行の content: {result_df['content'].iloc[0]}")
         
         return result_df, sections, extracted_text
     except Exception as e:
-        print(f"Excelファイル処理エラー: {str(e)}")
+        print(f"Videoファイル処理エラー: {str(e)}")
         import traceback
         print(traceback.format_exc())
         raise
+
+ASSEMBLYAI_API_KEY = "12c5b1a137d64b75a6dfd0e0debcc17b"
+
+# Headers for AssemblyAI API
+HEADERS = {
+    "authorization": ASSEMBLYAI_API_KEY,
+    "content-type": "application/json"
+}
+
+def upload_to_assemblyai(video_file: BytesIO) -> str:
+    """
+    Uploads video file to AssemblyAI and returns the upload URL.
+    """
+    upload_url = "https://api.assemblyai.com/v2/upload"
+
+    response = requests.post(
+        upload_url,
+        headers={"authorization": ASSEMBLYAI_API_KEY},
+        data=video_file
+    )
+
+    response.raise_for_status()
+    return response.json()['upload_url']
+
+def start_transcription(upload_url: str) -> str:
+    """
+    Starts the transcription job and returns the transcript ID.
+    """
+    transcript_endpoint = "https://api.assemblyai.com/v2/transcript"
+    json_data = {
+        "audio_url": upload_url
+    }
+
+    response = requests.post(transcript_endpoint, json=json_data, headers=HEADERS)
+    response.raise_for_status()
+    return response.json()["id"]
+
+def poll_transcription(transcript_id: str) -> dict:
+    """
+    Polls the transcript endpoint until transcription is completed.
+    """
+    polling_endpoint = f"https://api.assemblyai.com/v2/transcript/{transcript_id}"
+
+    while True:
+        response = requests.get(polling_endpoint, headers=HEADERS)
+        response.raise_for_status()
+        data = response.json()
+
+        if data["status"] == "completed":
+            return data
+        elif data["status"] == "error":
+            raise RuntimeError(f"Transcription failed: {data['error']}")
+
+        time.sleep(3)  # Wait a few seconds before checking again
+
+def transcribe_video_file(video_file: BytesIO) -> str:
+    """
+    Main function to handle the full transcription pipeline.
+    """
+    print("Uploading video...")
+    upload_url = upload_to_assemblyai(video_file)
+
+    print("Starting transcription...")
+    transcript_id = start_transcription(upload_url)
+
+    print("Waiting for transcription to complete...")
+    transcript_data = poll_transcription(transcript_id)
+
+    return transcript_data["text"]

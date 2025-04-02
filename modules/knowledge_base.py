@@ -238,7 +238,7 @@ async def process_file(file: UploadFile = File(...), user_id: str = None, compan
             
         if user and user['company_id'] and not company_id:
             company_id = user['company_id']
-    if not file.filename.endswith(('.xlsx', '.xls', '.pdf', '.txt')):
+    if not file.filename.endswith(('.xlsx', '.xls', '.pdf', '.txt', '.avi', '.mp4', '.webp')):
         raise HTTPException(
             status_code=400,
             detail="無効なファイル形式です。ExcelファイルまたはPDFファイル、テキストファイル（.xlsx、.xls、.pdf、.txt）のみ対応しています。"
@@ -310,15 +310,15 @@ async def process_file(file: UploadFile = File(...), user_id: str = None, compan
                 df, sections, extracted_text = _process_txt_file(contents, file.filename)
                 print(f"テキストファイル処理完了: {len(df)} 行のデータを抽出")
 
-            # elif file_extension in ['.avi', 'mp4', '.webm']:
-            #     if file_size_mb > 500:
-            #         raise HTTPException(
-            #             status_code=400,
-            #             detail=f"ビデオファイルが大きすぎます ({file_size_mb:.2f} MB)。500MB以下のファイルを使用するか、ファイルを分割してください。"
-            #         )
+            elif file_extension in ['.avi', 'mp4', '.webm']:
+                if file_size_mb > 500:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"ビデオファイルが大きすぎます ({file_size_mb:.2f} MB)。500MB以下のファイルを使用するか、ファイルを分割してください。"
+                    )
                 
-            #     df, sections, extracted_text = _process_video_file(contents, file.filename)
-            #     print(f"PDFファイル処理完了: {len(df)} 行のデータを抽出")
+                df, sections, extracted_text = _process_video_file(contents, file.filename)
+                print(f"PDFファイル処理完了: {len(df)} 行のデータを抽出")
                 
             # データフレームの内容を確認
             if df is not None and not df.empty:
@@ -647,7 +647,6 @@ def _process_pdf_file(contents, filename):
         
         if all_text == "":
             all_text = ocr_pdf_to_text_from_bytes(contents)
-            print(all_text)
             result_df = pd.DataFrame(all_data) if all_data else pd.DataFrame({
                 'section': ["一般情報"],
                 'content': [all_text],
