@@ -2,6 +2,19 @@ import requests
 import re
 from bs4 import BeautifulSoup
 from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api.proxies import GenericProxyConfig
+
+ytt_api = YouTubeTranscriptApi(
+    proxy_config=GenericProxyConfig(
+        http_url="http://3f19decfe19f814c:RNW78Fm5@res.proxy-seller.com:10000",
+        https_url="https://3f19decfe19f814c:RNW78Fm5@res.proxy-seller.com:10000",
+    )
+)
+# Function to extract video ID from a full YouTube URL
+def get_video_id(youtube_url):
+    import re
+    match = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', youtube_url)
+    return match.group(1) if match else None
 
 def transcribe_youtube_video(youtube_url: str) -> str:
     video_id = get_video_id(youtube_url)
@@ -9,7 +22,7 @@ def transcribe_youtube_video(youtube_url: str) -> str:
         return "Invalid YouTube URL."
     
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        transcript = ytt_api.get_transcript(video_id)
         full_text = "\n".join([item['text'] for item in transcript])
         print(full_text)
         return full_text
@@ -17,11 +30,7 @@ def transcribe_youtube_video(youtube_url: str) -> str:
         print(f"Error: {str(e)}")
         return f"Error: {str(e)}"
 
-# Function to extract video ID from a full YouTube URL
-def get_video_id(youtube_url):
-    import re
-    match = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', youtube_url)
-    return match.group(1) if match else None
+
 
 def extract_text_from_html(url: str) -> str:
     headers = {
