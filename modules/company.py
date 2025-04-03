@@ -7,7 +7,7 @@ import logging
 from fastapi import HTTPException, Depends
 from psycopg2.extensions import connection as Connection
 from .models import CompanyNameResponse, CompanyNameRequest
-from .database import get_db, get_company_by_id
+from .database import get_db, get_company_by_id, create_company, update_company_id_by_email
 
 # デフォルト会社名（初期値は空）
 DEFAULT_COMPANY_NAME = ""
@@ -121,5 +121,10 @@ async def set_company_name(request: CompanyNameRequest, user=None, db: Connectio
         db.commit()
         logger.info(f"会社ID {user['company_id']} の名前を「{new_company_name}」に更新しました")
     
+    else:
+        company_id = create_company(new_company_name, db)
+        update_company_id_by_email(company_id, user["email"], db)
+        
+
     # 成功レスポンスを返す
     return {"company_name": new_company_name}

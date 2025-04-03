@@ -91,6 +91,7 @@ class CompanyNameRequest(BaseModel):
 
 # アップロードリソース関連モデル
 class ResourceItem(BaseModel):
+    id: str
     name: str
     type: str
     timestamp: datetime

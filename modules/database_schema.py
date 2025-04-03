@@ -43,6 +43,7 @@ SCHEMA = {
         name TEXT NOT NULL,
         type TEXT NOT NULL,
         page_count INTEGER,
+        content TEXT NOT NULL,
         uploaded_by TEXT NOT NULL,
         company_id TEXT NOT NULL,
         uploaded_at TIMESTAMP NOT NULL,

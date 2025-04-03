@@ -309,3 +309,11 @@ def get_demo_usage_stats(db: Connection, company_id: str = None) -> dict:
         result["total_companies"] = total_companies
 
     return result
+
+def update_company_id_by_email(company_id: str, user_email: str, db: Connection) -> bool:
+    cursor = db.cursor()
+    print(company_id)
+    print(user_email)
+    cursor.execute("UPDATE users SET company_id = %s WHERE email = %s", (company_id, user_email))
+    db.commit()
+    return cursor.rowcount > 0

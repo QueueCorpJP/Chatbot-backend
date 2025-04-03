@@ -32,7 +32,7 @@ from modules.admin import (
 )
 from modules.company import get_company_name, set_company_name
 from modules.auth import get_current_user, get_current_admin, register_new_user, get_admin_or_user, get_company_admin
-
+from modules.resource import get_uploaded_resources_by_company_id, toggle_resource_active_by_id, remove_resource_by_id
 # ロギングの設定
 logger = setup_logging()
 
@@ -354,29 +354,37 @@ async def admin_get_employee_usage(current_user = Depends(get_company_admin), db
 
 # アップロードされたリソースを取得するエンドポイント
 @app.get("/chatbot/api/admin/resources", response_model=ResourcesResult)
-async def admin_get_resources(current_user = Depends(get_admin_or_user)):
+async def admin_get_resources(current_user = Depends(get_admin_or_user), db: Connection = Depends(get_db)):
     """アップロードされたリソース（URL、PDF、Excel、TXT）の情報を取得する"""
-    return await get_uploaded_resources()
+    # return await get_uploaded_resources()
+    is_special_admin = current_user["email"] == "queue@queuefood.co.jp" and current_user.get("is_special_admin", False)
+    if is_special_admin:
+        return await get_uploaded_resources_by_company_id(None, db)
+    else:
+        company_id = current_user["company_id"]
+        print(await get_uploaded_resources_by_company_id(company_id, db))
+        return await get_uploaded_resources_by_company_id(company_id, db)
 
 # リソースのアクティブ状態を切り替えるエンドポイント
-@app.post("/chatbot/api/admin/resources/{resource_name:path}/toggle", response_model=ResourceToggleResponse)
-async def admin_toggle_resource(resource_name: str, current_user = Depends(get_admin_or_user)):
+@app.post("/chatbot/api/admin/resources/{resource_id:path}/toggle", response_model=ResourceToggleResponse)
+async def admin_toggle_resource(resource_id: str, current_user = Depends(get_admin_or_user), db: Connection = Depends(get_db)):
     """リソースのアクティブ状態を切り替える"""
     # URLデコード
     import urllib.parse
-    decoded_name = urllib.parse.unquote(resource_name)
-    print(f"トグルリクエスト: {resource_name} -> デコード後: {decoded_name}")
-    return await toggle_resource_active(decoded_name)
+    decoded_id = urllib.parse.unquote(resource_id)
+    print(f"トグルリクエスト: {resource_id} -> デコード後: {decoded_id}")
+    return await toggle_resource_active_by_id(decoded_id, db)
 
 # リソースを削除するエンドポイント
-@app.delete("/chatbot/api/admin/resources/{resource_name:path}", response_model=dict)
-async def admin_delete_resource(resource_name: str, current_user = Depends(get_admin_or_user)):
+@app.delete("/chatbot/api/admin/resources/{resource_id:path}", response_model=dict)
+async def admin_delete_resource(resource_id: str, current_user = Depends(get_admin_or_user), db: Connection = Depends(get_db)):
     """リソースを削除する"""
     # URLデコード
     import urllib.parse
-    decoded_name = urllib.parse.unquote(resource_name)
-    print(f"削除リクエスト: {resource_name} -> デコード後: {decoded_name}")
-    return await delete_resource(decoded_name)
+    decoded_id = urllib.parse.unquote(resource_id)
+    print(f"削除リクエスト: {resource_id} -> デコード後: {decoded_id}")
+    # return await delete_resource(decoded_id)
+    return await remove_resource_by_id(decoded_id, db)
 
 # 会社名を取得するエンドポイント
 @app.get("/chatbot/api/company-name", response_model=CompanyNameResponse)

@@ -149,3 +149,4 @@ def transcribe_video_file(video_file: BytesIO) -> str:
     transcript_data = poll_transcription(transcript_id)
 
     return transcript_data["text"]
+

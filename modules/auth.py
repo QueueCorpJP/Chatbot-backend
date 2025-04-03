@@ -47,7 +47,6 @@ def get_admin_or_user(user = Depends(get_current_user)):
     
     # 管理者権限チェックを行わない（管理者と通常ユーザーにアクセスを許可）
     return user
-    return user
 
 def get_company_admin(user = Depends(get_current_user)):
     """会社の管理者ユーザーを取得します"""

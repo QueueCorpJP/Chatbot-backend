@@ -185,8 +185,8 @@ async def process_url(url: str, user_id: str = None, company_id: str = None, db:
             document_id = str(uuid.uuid4())
             cursor = db.cursor()
             cursor.execute(
-                "INSERT INTO document_sources (id, name, type, uploaded_by, company_id, uploaded_at, active) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                (document_id, url, "URL", user_id, company_id, datetime.now().isoformat(), 1)
+                "INSERT INTO document_sources (id, name, type, content, uploaded_by, company_id, uploaded_at, active) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                (document_id, url, "URL", extracted_text, user_id, company_id, datetime.now().isoformat(), 1)
             )
             
             # 会社のソースリストに追加
@@ -400,13 +400,14 @@ async def process_file(file: UploadFile = File(...), user_id: str = None, compan
                     page_count = len(pdf_reader.pages)
                 except:
                     pass
-            
+          
             cursor = db.cursor()
+
             cursor.execute(
-                "INSERT INTO document_sources (id, name, type, page_count, uploaded_by, company_id, uploaded_at, active) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-                (document_id, file.filename, file_extension.upper(), page_count, user_id, company_id, datetime.now().isoformat(), True)
+                "INSERT INTO document_sources (id, name, type, page_count, content, uploaded_by, company_id, uploaded_at, active) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (document_id, file.filename, file_extension.upper(), page_count, extracted_text, user_id, company_id, datetime.now().isoformat(), True)
             )
-            
+
             # 会社のソースリストに追加
             if company_id:
                 if company_id not in knowledge_base.company_sources:
@@ -468,7 +469,6 @@ def get_active_resources(company_id=None):
             if source in knowledge_base.source_info and knowledge_base.source_info[source].get('active', True):
                 active_sources.append(source)
     
-    return active_sources
     return active_sources
 
 # 知識ベース情報を取得する関数
@@ -848,6 +848,8 @@ async def get_uploaded_resources():
                 resource_type = "PDF"
             elif extension == 'txt':
                 resource_type = "テキスト"
+            if extension in ['avi', 'mp4', 'webp']:
+                resource_type = "Video"
             else:
                 resource_type = "その他"
         

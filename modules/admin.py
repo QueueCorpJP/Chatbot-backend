@@ -414,7 +414,6 @@ async def delete_resource(resource_name: str):
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
-
 async def get_uploaded_resources():
     """アップロードされたリソース（URL、PDF、Excel、TXT）の情報を取得する"""
     try:
@@ -467,6 +466,7 @@ async def get_uploaded_resources():
         import traceback
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
+
 async def get_chat_history(user_id: str = None, db: Connection = Depends(get_db)):
     """チャット履歴を取得する
     
