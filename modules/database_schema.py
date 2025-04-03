@@ -29,9 +29,9 @@ SCHEMA = {
     CREATE TABLE IF NOT EXISTS usage_limits (
         user_id TEXT PRIMARY KEY,
         document_uploads_used INTEGER NOT NULL DEFAULT 0,
-        document_uploads_limit INTEGER NOT NULL DEFAULT 1,
+        document_uploads_limit INTEGER NOT NULL DEFAULT 2,
         questions_used INTEGER NOT NULL DEFAULT 0,
-        questions_limit INTEGER NOT NULL DEFAULT 5,
+        questions_limit INTEGER NOT NULL DEFAULT 10,
         is_unlimited BOOLEAN NOT NULL DEFAULT FALSE,
         FOREIGN KEY (user_id) REFERENCES users (id)
     )
