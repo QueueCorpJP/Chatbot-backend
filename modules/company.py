@@ -46,7 +46,7 @@ async def get_company_name(user=None, db: Connection = Depends(get_db)):
             return {"company_name": company["name"]}
     
     # 会社が見つからない場合はデフォルト会社名を返す
-    return {"company_name": DEFAULT_COMPANY_NAME}
+    return {"company_name": ""}
 
 async def set_company_name(request: CompanyNameRequest, user=None, db: Connection = Depends(get_db)):
     """
