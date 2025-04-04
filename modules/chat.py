@@ -16,6 +16,7 @@ from .database import get_db, update_usage_count, get_usage_limits
 # from .database import get_db
 from .knowledge_base import knowledge_base, get_active_resources
 from .auth import check_usage_limits
+from .resource import get_active_resources_by_company_id, get_active_resources_content_by_ids
 
 logger = logging.getLogger(__name__)
 
@@ -52,24 +53,6 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
             # 無制限でない場合は残り回数を計算
             if not limits_check["is_unlimited"]:
                 remaining_questions = limits_check["remaining"]
-        
-        if knowledge_base.data is None or len(knowledge_base.data) == 0:
-            response_text = f"申し訳ございません。{current_company_name}の情報が設定されていません。まずはExcelファイルをアップロードするか、URLを送信してください。"
-            
-            # チャット履歴を保存
-            chat_id = str(uuid.uuid4())
-            cursor = db.cursor()
-            cursor.execute(
-                "INSERT INTO chat_history (id, user_message, bot_response, timestamp, category, sentiment, employee_id, employee_name) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-                (chat_id, message.text, response_text, datetime.now().isoformat(), "設定エラー", "neutral", message.employee_id, message.employee_name)
-            )
-            db.commit()
-            
-            return {
-                "response": response_text,
-                "remaining_questions": remaining_questions,
-                "limit_reached": limit_reached
-            }
 
         # ユーザーの会社IDを取得
         company_id = None
@@ -84,7 +67,8 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
         from .company import DEFAULT_COMPANY_NAME as current_company_name
         
         # 会社固有のアクティブなリソースを取得
-        active_sources = get_active_resources(company_id)
+        # active_sources = get_active_resources(company_id)
+        active_sources = await get_active_resources_by_company_id(company_id, db)
         print(f"アクティブなリソース (会社ID: {company_id}): {', '.join(active_sources)}")
         
         # アクティブなリソースがない場合はエラーメッセージを返す
@@ -111,195 +95,11 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
         import traceback
         
         # 選択されたリソースを使用して知識ベースを作成
-        active_knowledge_text = ""
         source_info = {}  # ソース情報を保存する辞書
         
-        print(f"知識ベースの生データ長: {len(knowledge_base.raw_text) if knowledge_base.raw_text else 0}")
+        # print(f"知識ベースの生データ長: {len(knowledge_base.raw_text) if knowledge_base.raw_text else 0}")
         print(f"アクティブなソース: {active_sources}")
-        
-        # 方法1: データフレームからアクティブなリソースのデータを抽出
-        try:
-            if knowledge_base.data is not None and not knowledge_base.data.empty:
-                print(f"知識ベースのデータフレーム列: {knowledge_base.data.columns.tolist()}")
-                print(f"アクティブなソース: {active_sources}")
-                
-                # データフレームをコピーして作業する（元のデータを変更しないため）
-                filtered_data = knowledge_base.data.copy()
-                
-                # フィルタリング条件を準備
-                mask = pd.Series(False, index=filtered_data.index)
-                
-                # URLカラムがある場合、アクティブなURLでフィルタリング
-                if 'url' in filtered_data.columns:
-                    # 完全一致でフィルタリング
-                    url_mask = filtered_data['url'].notna() & filtered_data['url'].isin(active_sources)
-                    
-                    # 部分一致でもフィルタリング（URLの一部がactive_sourcesに含まれる場合）
-                    for source in active_sources:
-                        partial_url_mask = filtered_data['url'].notna() & filtered_data['url'].str.contains(source, na=False)
-                        url_mask = url_mask | partial_url_mask
-                    
-                    mask = mask | url_mask
-                    print(f"URLフィルタリングマッチ数: {url_mask.sum()}")
-                
-                # fileカラムがある場合、アクティブなファイルでフィルタリング
-                if 'file' in filtered_data.columns:
-                    # 完全一致でフィルタリング
-                    file_mask = filtered_data['file'].notna() & filtered_data['file'].isin(active_sources)
-                    
-                    # 部分一致でもフィルタリング（ファイル名の一部がactive_sourcesに含まれる場合）
-                    for source in active_sources:
-                        partial_file_mask = filtered_data['file'].notna() & filtered_data['file'].str.contains(source, na=False)
-                        file_mask = file_mask | partial_file_mask
-                    
-                    mask = mask | file_mask
-                    print(f"ファイルフィルタリングマッチ数: {file_mask.sum()}")
-                
-                # フィルタリングしたデータを取得
-                active_data = filtered_data[mask]
-                print(f"アクティブなデータ行数: {len(active_data)}")
-                
-                # アクティブなデータが空の場合、もう一度試行
-                if active_data.empty and active_sources:
-                    print("アクティブなデータが見つかりませんでした。別の方法で試行します。")
-                    
-                    # 全てのデータを確認
-                    for idx, row in filtered_data.iterrows():
-                        source_found = False
-                        
-                        # URLカラムをチェック
-                        if 'url' in row and pd.notna(row['url']):
-                            for source in active_sources:
-                                if source in str(row['url']):
-                                    source_found = True
-                                    break
-                        
-                        # fileカラムをチェック
-                        if not source_found and 'file' in row and pd.notna(row['file']):
-                            for source in active_sources:
-                                if source in str(row['file']):
-                                    source_found = True
-                                    break
-                        
-                        if source_found:
-                            # 行を追加
-                            active_data = pd.concat([active_data, pd.DataFrame([row])], ignore_index=True)
-                    
-                    print(f"2回目の試行後のアクティブなデータ行数: {len(active_data)}")
-                
-                # 各セクションのコンテンツをテキストに追加
-                if not active_data.empty:
-                    for _, row in active_data.iterrows():
-                        try:
-                            section = str(row.get('section', '')) if 'section' in row else 'セクション情報なし'
-                            content = str(row.get('content', '')) if 'content' in row else ''
-                            
-                            # ソース情報の取得
-                            source_type = str(row.get('source', '')) if 'source' in row else ''
-                            source_name = ''
-                            page_info = str(row.get('page', '')) if 'page' in row else ''
-                            
-                            if 'url' in row and pd.notna(row['url']):
-                                source_name = str(row['url'])
-                            elif 'file' in row and pd.notna(row['file']):
-                                source_name = str(row['file'])
-                            
-                            # ソース情報を保存
-                            source_key = f"{source_name}:{section}"
-                            if source_key not in source_info:
-                                source_info[source_key] = {
-                                    "name": source_name,
-                                    "section": section,
-                                    "page": page_info
-                                }
-                            
-                            # テキストに追加 (ソース情報は別途返すので、ここでは含めない)
-                            active_knowledge_text += f"\n=== {section} ===\n"
-                            active_knowledge_text += f"{content}\n\n"
-                        except Exception as row_e:
-                            print(f"行の処理中にエラー: {str(row_e)}")
-        except Exception as e:
-            print(f"データフレーム処理エラー: {str(e)}")
-            print(traceback.format_exc())
-        
-        # 方法2: 従来の方法でテキストベースのフィルタリングを試行
-        if not active_knowledge_text.strip() and knowledge_base.raw_text:
-            print("従来の方法で知識ベーステキストを処理します")
-            try:
-                # 全テキストを行に分割
-                lines = knowledge_base.raw_text.split('\n')
-                current_source = None
-                current_section = None
-                include_section = False
-                
-                print(f"アクティブソース一覧: {active_sources}")
-                
-                for line in lines:
-                    # URLセクションの開始を検出
-                    if "=== URL:" in line:
-                        url = line.replace("=== URL:", "").strip()
-                        current_source = url
-                        current_section = "URL情報"
-                        # 完全一致のチェック
-                        include_section = current_source in active_sources
-                        # 完全一致しない場合は、部分一致でもチェック
-                        if not include_section:
-                            include_section = any(active_source in url for active_source in active_sources)
-                        print(f"URLセクション検出: {url}, アクティブ: {include_section}")
-                        
-                        # ソース情報を保存
-                        if include_section:
-                            source_key = f"{current_source}:{current_section}"
-                            if source_key not in source_info:
-                                source_info[source_key] = {
-                                    "name": current_source,
-                                    "section": current_section,
-                                    "page": ""
-                                }
-                    
-                    # ファイル名を含むセクションの開始を検出（PDFやExcelなど）
-                    elif "===" in line:
-                        # セクション名を抽出
-                        section_match = re.search(r'=== (.*?) \(', line)
-                        if section_match:
-                            current_section = section_match.group(1)
-                        
-                        # ページ情報を抽出
-                        page_match = re.search(r'ページ: (\d+)', line)
-                        page_info = page_match.group(1) if page_match else ""
-                        
-                        # アクティブソースとの部分一致をチェック
-                        matched_source = None
-                        for source in active_sources:
-                            if source in line:
-                                matched_source = source
-                                break
-                                
-                        if matched_source:
-                            current_source = matched_source
-                            include_section = True
-                            print(f"ファイルセクション検出: {matched_source}, アクティブ: True")
-                            
-                            # ソース情報を保存
-                            source_key = f"{current_source}:{current_section}"
-                            if source_key not in source_info:
-                                source_info[source_key] = {
-                                    "name": current_source,
-                                    "section": current_section,
-                                    "page": page_info
-                                }
-                        elif current_source and "===" in line:  # 新しいセクションの開始だが、アクティブソースではない
-                            print(f"新しいセクション検出、現在のソースを維持: {current_source}")
-                    
-                    # 選択されたソースの場合のみテキストを追加
-                    if include_section:
-                        active_knowledge_text += line + '\n'
-                
-                print(f"従来の方法で抽出したテキスト長: {len(active_knowledge_text)}")
-            except Exception as text_e:
-                print(f"テキスト処理エラー: {str(text_e)}")
-                print(traceback.format_exc())
-        
+        active_knowledge_text = await get_active_resources_content_by_ids(active_sources, db)
         # アクティブな知識ベースが空の場合はエラーメッセージを返す
         if not active_knowledge_text.strip():
             response_text = f"申し訳ございません。アクティブな知識ベースの内容が空です。管理画面で別のリソースを有効にしてください。"
