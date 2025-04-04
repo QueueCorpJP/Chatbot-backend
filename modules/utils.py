@@ -6,12 +6,19 @@ from youtube_transcript_api.proxies import WebshareProxyConfig
 from io import BytesIO
 import pandas as pd
 import time
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
+
+WEBSHAREPROXY_USERNAME = os.getenv("WEBSHAREPROXY_USERNAME")
+WEBSHAREPROXY_PASSWORD = os.getenv("WEBSHAREPROXY_PASSWORD")
+ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY")
 
 ytt_api = YouTubeTranscriptApi(
     proxy_config=WebshareProxyConfig(
-        proxy_username="xvxgfoll",
-        proxy_password="t629a21sw1rt",
+        proxy_username=WEBSHAREPROXY_PASSWORD,
+        proxy_password=WEBSHAREPROXY_PASSWORD,
     )
 )
 # Function to extract video ID from a full YouTube URL
@@ -80,8 +87,6 @@ def _process_video_file(contents, filename):
         import traceback
         print(traceback.format_exc())
         raise
-
-ASSEMBLYAI_API_KEY = "12c5b1a137d64b75a6dfd0e0debcc17b"
 
 # Headers for AssemblyAI API
 HEADERS = {

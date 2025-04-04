@@ -3,15 +3,44 @@
 1. デプロイ手順
 
 初期セットアップ：
+  - PostgreSQL のインストール
+    sudo yum clean metadata
+    sudo yum install -y postgresql15 postgresql15-server
+    which postgresql-setup
+    sudo postgresql-setup --initdb
+    sudo systemctl enable postgresql
+    sudo systemctl start postgresql
+    sudo systemctl status postgresql
+  - データベースとユーザーの作成
+    sudo -i -u postgres
+    psql -U postgres -W
+    // set password
+    sudo -i -u postgres
+    psql
+    \password postgres
+  - 認証方式の設定を変更
+    sudo nano /var/lib/pgsql/data/pg_hba.conf
+    "peer" and "ident" update to "md5"
+  - PostgreSQL を再起動
+    sudo systemctl restart postgresql
+
+    
   - 最新のコードをプル：git pull origin main
   - 仮想環境の作成：
     python -m venv venv
     source venv/bin/activate
   - 依存パッケージのインストール：pip install -r requirements.txt
   - .env ファイルの作成： 例：
-    GOOGLE_API_KEY=AIz...J7I
-    COMPANY_NAME=""
-    ASSEMBLE_API_KEY=12c...17b
+    GOOGLE_API_KEY=AI...7I
+    COMPANY_NAME="Queue"
+    WEBSHAREPROXY_USERNAME=xv...ll
+    WEBSHAREPROXY_PASSWORD=t6...rt
+    ASSEMBLYAI_API_KEY=12...7b
+    DB_NAME = chatbot
+    DB_USER = postgres
+    DB_PASSWORD = yourpassword
+    DB_HOST = localhost
+    DB_PORT = 5432
   - FastAPI アプリの起動：python main.py
 
 リバースプロキシ設定（Nginx）：
@@ -52,6 +81,28 @@ Backend (FastAPI on AWS EC2)
 1. Deployment Procedures
 
 Initial Setup:
+  - Install PostgreSQL:
+    sudo yum clean metadata
+    sudo yum install -y postgresql15 postgresql15-server
+    which postgresql-setup
+    sudo postgresql-setup --initdb
+    sudo systemctl enable postgresql
+    sudo systemctl start postgresql
+    sudo systemctl status postgresql
+  - Create Database and User
+    sudo -i -u postgres
+    psql -U postgres -W
+    // set password
+    sudo -i -u postgres
+    psql
+    \password postgres
+  - Update authorization method
+    sudo nano /var/lib/pgsql/data/pg_hba.conf
+    "peer" and "ident" update to "md5"
+  - Restart PostgreSQL
+    sudo systemctl restart postgresql
+
+
   - Pull the latest code:
     git pull origin main
 
@@ -64,9 +115,16 @@ Initial Setup:
 
   - Create .env File:
     Example .env file:
-    GOOGLE_API_KEY=AIz...J7I
-    COMPANY_NAME=""
-    ASSEMBLE_API_KEY=12c...17b
+    GOOGLE_API_KEY=AI...7I
+    COMPANY_NAME="Queue"
+    WEBSHAREPROXY_USERNAME=xv...ll
+    WEBSHAREPROXY_PASSWORD=t6...rt
+    ASSEMBLYAI_API_KEY=12...7b
+    DB_NAME = chatbot
+    DB_USER = postgres
+    DB_PASSWORD = yourpassword
+    DB_HOST = localhost
+    DB_PORT = 5432
 
   - Run the FastAPI app:
     python main.py
