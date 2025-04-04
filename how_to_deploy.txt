@@ -1,0 +1,105 @@
+バックエンド（FastAPI on AWS EC2）
+
+1. デプロイ手順
+
+初期セットアップ：
+  - 最新のコードをプル：git pull origin main
+  - 仮想環境の作成：
+    python -m venv venv
+    source venv/bin/activate
+  - 依存パッケージのインストール：pip install -r requirements.txt
+  - .env ファイルの作成： 例：
+    GOOGLE_API_KEY=AIz...J7I
+    COMPANY_NAME=""
+    ASSEMBLE_API_KEY=12c...17b
+  - FastAPI アプリの起動：python main.py
+
+リバースプロキシ設定（Nginx）：
+  - Nginx をインストール（未インストールの場合）： sudo apt install nginx
+  - Nginx の設定を編集：sudo nano /etc/nginx/nginx.conf
+  - 以下を追加または修正：
+    server {
+      ...
+      location /chatbot/api/ {
+        proxy_pass http://127.0.0.1:8083;  # バックエンドサービス（ポート8083）
+        proxy_set_header Host $host;  # オリジナルのHostヘッダーを保持
+        proxy_set_header X-Real-IP $remote_addr;  # クライアントのIPアドレス
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;  # IPチェーンの保持
+        proxy_set_header X-Forwarded-Proto $scheme;  # 使用プロトコルの保持
+      }
+      ...
+    }
+  - Nginx を再起動：
+    sudo systemctl restart nginx
+
+2. 起動手順
+
+systemd を使用する場合：sudo systemctl start chatbot-backend
+※サービスが未設定の場合は、別途 chatbot-backend.service を /etc/systemd/system/ に作成してください。
+
+3. メンテナンス手順
+
+最新のコードを取得：git pull
+サービスを再起動：sudo systemctl restart chatbot-backend
+ログを確認：journalctl -u chatbot-backend -f
+
+
+
+===========================English=======================================
+
+Backend (FastAPI on AWS EC2)
+
+1. Deployment Procedures
+
+Initial Setup:
+  - Pull the latest code:
+    git pull origin main
+
+  - Create a virtual environment:
+    python -m venv venv
+    source venv/bin/activate
+
+  - Install dependencies:
+    pip install -r requirements.txt
+
+  - Create .env File:
+    Example .env file:
+    GOOGLE_API_KEY=AIz...J7I
+    COMPANY_NAME=""
+    ASSEMBLE_API_KEY=12c...17b
+
+  - Run the FastAPI app:
+    python main.py
+
+Reverse Proxy Setup (Nginx):
+  - Install Nginx if not already installed.
+
+  - Configure Nginx:
+    sudo nano /etc/nginx/nginx.conf
+
+    ...
+    server {
+      ...
+      location /chatbot/api/ {
+        proxy_pass http://127.0.0.1:8083;  # Backend service running on port 8083
+        proxy_set_header Host $host;  # Preserve original Host header
+        proxy_set_header X-Real-IP $remote_addr;  # Real client IP
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;  # Preserve client IP chain
+        proxy_set_header X-Forwarded-Proto $scheme;  # Preserve protocol (HTTP/HTTPS)
+      }
+      ...
+    }
+
+  - Restart Nginx:
+    sudo systemctl restart nginx
+
+2. Startup Procedure
+  If using systemd:
+  sudo systemctl start chatbot-backend
+
+3. Maintenance Procedures
+  Pull latest changes: git pull
+  Restart the service: sudo systemctl restart chatbot-backend
+  View backend logs: journalctl -u chatbot-backend -f
+
+
