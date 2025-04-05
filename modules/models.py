@@ -22,6 +22,7 @@ class UserResponse(BaseModel):
     name: str
     role: str
     created_at: datetime
+    company_name: str
 
 class UsageLimit(BaseModel):
     document_uploads_used: int

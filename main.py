@@ -94,6 +94,7 @@ async def login(credentials: UserLogin, db: Connection = Depends(get_db)):
         "name": user["name"],
         "role": user["role"],
         "created_at": user["created_at"],
+        "company_name": user["company_name"] or "",
         "usage_limits": {
             "document_uploads_used": limits["document_uploads_used"],
             "document_uploads_limit": limits["document_uploads_limit"],
@@ -152,6 +153,7 @@ async def admin_register_user(user_data: AdminUserCreate, current_user = Depends
                 "email": user_data.email,
                 "name": user_data.name,
                 "role": role,
+                "company_name": "",
                 "created_at": datetime.datetime.now().isoformat()
             }
         else:
@@ -181,6 +183,7 @@ async def admin_register_user(user_data: AdminUserCreate, current_user = Depends
                 "email": user_data.email,
                 "name": user_data.name,
                 "role": "employee",
+                "company_name": "",
                 "created_at": datetime.datetime.now().isoformat()
             }
     except HTTPException as e:
@@ -226,6 +229,7 @@ async def admin_delete_user(user_id: str, current_user = Depends(get_admin_or_us
     
     # ユーザーの削除
     cursor.execute("DELETE FROM usage_limits WHERE user_id = %s", (user_id,))
+    cursor.execute("DELETE FROM document_sources WHERE uploaded_by = %s", (user_id,))
     cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
     db.commit()
     

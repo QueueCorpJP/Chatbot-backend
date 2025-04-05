@@ -183,8 +183,8 @@ async def process_url(url: str, user_id: str = None, company_id: str = None, db:
             document_id = str(uuid.uuid4())
             cursor = db.cursor()
             cursor.execute(
-                "INSERT INTO document_sources (id, name, type, content, uploaded_by, company_id, uploaded_at, active) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-                (document_id, url, "URL", extracted_text, user_id, company_id, datetime.now().isoformat(), True)
+                "INSERT INTO document_sources (id, name, type, page_count, content, uploaded_by, company_id, uploaded_at, active) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (document_id, url, "URL", 1, extracted_text, user_id, company_id, datetime.now().isoformat(), True)
             )
             
             # 会社のソースリストに追加
@@ -197,7 +197,7 @@ async def process_url(url: str, user_id: str = None, company_id: str = None, db:
         
         # アクティブなソースを取得
         active_sources = get_active_resources()
-        
+        limits_check = check_usage_limits(user_id, "document_upload", db)
         return {
             "message": f"{current_company_name}の情報が正常に更新されました（URL: {url}）",
             "columns": knowledge_base.columns if knowledge_base.data is not None else [],

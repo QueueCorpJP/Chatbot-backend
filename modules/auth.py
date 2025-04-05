@@ -79,13 +79,14 @@ def register_new_user(email: str, password: str, name: str, role: str = "user", 
             detail="このメールアドレスは既に登録されています",
         )
     
-    user_id = create_user(email, password, name, role, None, db)
-    user_id = create_user(email, password, name, role, db)
+    user_id = create_user(email, password, name, role, "", db)
+    # user_id = create_user(email, password, name, role, db)
     return {
         "id": user_id,
         "email": email,
         "name": name,
         "role": role,
+        "company_name": "",
         "created_at": datetime.datetime.now().isoformat()
     }
 

@@ -276,7 +276,7 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
         
         return {
             "response": response_text,
-            "source": source_doc + (f" (P.{source_page})" if source_page else ""),
+            "source": (source_doc or "") + (f" (P.{source_page})" if source_page else ""),
             "remaining_questions": remaining_questions,
             "limit_reached": limit_reached
         }
