@@ -17,7 +17,7 @@ ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY")
 
 ytt_api = YouTubeTranscriptApi(
     proxy_config=WebshareProxyConfig(
-        proxy_username=WEBSHAREPROXY_PASSWORD,
+        proxy_username=WEBSHAREPROXY_USERNAME,
         proxy_password=WEBSHAREPROXY_PASSWORD,
     )
 )

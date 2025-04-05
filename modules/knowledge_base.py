@@ -115,7 +115,6 @@ async def process_url(url: str, user_id: str = None, company_id: str = None, db:
                 company_id = user['company_id']
         
         # ユーザーIDがある場合は利用制限をチェック
-        # ユーザーIDがある場合は利用制限をチェック
         if user_id:
             # ドキュメントアップロードの利用制限をチェック
             limits_check = check_usage_limits(user_id, "document_upload", db)
@@ -128,7 +127,6 @@ async def process_url(url: str, user_id: str = None, company_id: str = None, db:
         
         # URLからテキストを抽出
         extracted_text = extract_text_from_url(url)
-        
         # テキストをセクションに分割
         sections = {}
         current_section = "メインコンテンツ"
@@ -186,7 +184,7 @@ async def process_url(url: str, user_id: str = None, company_id: str = None, db:
             cursor = db.cursor()
             cursor.execute(
                 "INSERT INTO document_sources (id, name, type, content, uploaded_by, company_id, uploaded_at, active) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-                (document_id, url, "URL", extracted_text, user_id, company_id, datetime.now().isoformat(), 1)
+                (document_id, url, "URL", extracted_text, user_id, company_id, datetime.now().isoformat(), True)
             )
             
             # 会社のソースリストに追加
@@ -318,7 +316,7 @@ async def process_file(file: UploadFile = File(...), user_id: str = None, compan
                     )
                 
                 df, sections, extracted_text = _process_video_file(contents, file.filename)
-                print(f"PDFファイル処理完了: {len(df)} 行のデータを抽出")
+                print(f"Videoファイル処理完了: {len(df)} 行のデータを抽出")
                 
             # データフレームの内容を確認
             if df is not None and not df.empty:
