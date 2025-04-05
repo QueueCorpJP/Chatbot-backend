@@ -176,7 +176,9 @@ async def process_url(url: str, user_id: str = None, company_id: str = None, db:
         from .company import DEFAULT_COMPANY_NAME as current_company_name
         
         # ユーザーIDがある場合はドキュメントアップロードカウントを更新
-        if user_id and not limits_check.get("is_unlimited", False):
+
+        # if user_id and not limits_check.get("is_unlimited", False):
+        if user_id:
             updated_limits = update_usage_count(user_id, "document_uploads_used", db)
             
             # ドキュメントソースを記録
@@ -384,7 +386,10 @@ async def process_file(file: UploadFile = File(...), user_id: str = None, compan
             print(f"現在のアクティブ状態: {active}")
             
         # ユーザーIDがある場合はドキュメントアップロードカウントを更新
-        if user_id and not limits_check.get("is_unlimited", False):
+        print(f"user_id:::{user_id}")
+        print(limits_check.get("is_unlimited", False))
+        # if user_id and not limits_check.get("is_unlimited", False):
+        if user_id:
             updated_limits = update_usage_count(user_id, "document_uploads_used", db)
             remaining_uploads = updated_limits["document_uploads_limit"] - updated_limits["document_uploads_used"]
             limit_reached = remaining_uploads <= 0
