@@ -13,7 +13,6 @@ from fastapi import HTTPException, Depends
 from .company import DEFAULT_COMPANY_NAME
 from .models import ChatMessage, ChatResponse
 from .database import get_db, update_usage_count, get_usage_limits
-# from .database import get_db
 from .knowledge_base import knowledge_base, get_active_resources
 from .auth import check_usage_limits
 from .resource import get_active_resources_by_company_id, get_active_resources_content_by_ids, get_active_resource_names_by_company_id
@@ -95,7 +94,7 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
         import traceback
         
         # 選択されたリソースを使用して知識ベースを作成
-        source_info = {}  # ソース情報を保存する辞書
+        # source_info = {}  # ソース情報を保存する辞書
         active_resource_names = await get_active_resource_names_by_company_id(company_id, db)
         source_info_list = [
             {
@@ -229,13 +228,9 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
         生成された回答：
         {response_text}
         """
-        print("===========")
-        print(analysis_prompt)
         # 分析の実行
         analysis_response = model.generate_content(analysis_prompt)
         analysis_text = analysis_response.text
-        print("===========")
-        print(analysis_text)
         
         # JSON部分を抽出
         try:
@@ -251,8 +246,6 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
             sentiment = analysis_json.get("sentiment", "neutral")
             source_doc = analysis_json.get("source", {}).get("name", "")
             source_page = analysis_json.get("source", {}).get("page", "")
-            print("1111111111")
-            print(source_doc)
 
             # 単純な挨拶のみの場合はソース情報をクリア
             # message_text = message.text.strip().lower() if message.text else ""
@@ -273,7 +266,6 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
             sentiment = "neutral"
             source_doc = ""
             source_page = ""
-            print("3333333333333")
         
         # チャット履歴を保存
         chat_id = str(uuid.uuid4())
