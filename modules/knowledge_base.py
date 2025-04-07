@@ -874,7 +874,7 @@ async def get_uploaded_resources():
 
 # using gemini ocr 
 def ocr_with_gemini(images, instruction):
-    batch_size = 8 # performance size
+    batch_size = 1 # performance size
     prompt = f"""
     {instruction}
     These are pages from a PDF document. Extract all text content while preserving the structure.
