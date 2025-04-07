@@ -66,6 +66,20 @@ async def get_active_resources_by_company_id(company_id: str, db: Connection):
     
     return resources
 
+async def get_active_resource_names_by_company_id(company_id: str, db: Connection):
+    """ユーザーが存在するか確認します"""
+    cursor = db.cursor()
+    if company_id == None:
+        cursor.execute("SELECT id, name, type, uploaded_at, active FROM document_sources WHERE active = True")
+    else:
+        cursor.execute("SELECT id, name, type, uploaded_at, active FROM document_sources WHERE active = True AND company_id = %s", (company_id,))
+    # return cursor.fetchone() is not 
+    sources = cursor.fetchall()
+    resources = []
+    resources = [source["name"] for source in sources]
+    
+    return resources
+
 async def get_active_resources_content_by_ids(resource_ids: list[str], db: Connection) -> str:
     cursor = db.cursor()
     if not resource_ids:

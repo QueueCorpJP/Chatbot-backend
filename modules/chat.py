@@ -16,7 +16,7 @@ from .database import get_db, update_usage_count, get_usage_limits
 # from .database import get_db
 from .knowledge_base import knowledge_base, get_active_resources
 from .auth import check_usage_limits
-from .resource import get_active_resources_by_company_id, get_active_resources_content_by_ids
+from .resource import get_active_resources_by_company_id, get_active_resources_content_by_ids, get_active_resource_names_by_company_id
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +96,15 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
         
         # 選択されたリソースを使用して知識ベースを作成
         source_info = {}  # ソース情報を保存する辞書
+        active_resource_names = await get_active_resource_names_by_company_id(company_id, db)
+        source_info_list = [
+            {
+                "name": res_name,
+                "section": "不明",  # or default
+                "page": ""
+            }
+            for res_name in active_resource_names
+        ]
         
         # print(f"知識ベースの生データ長: {len(knowledge_base.raw_text) if knowledge_base.raw_text else 0}")
         print(f"アクティブなソース: {active_sources}")
@@ -196,7 +205,7 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
         1. カテゴリ: 質問のカテゴリを1つだけ選んでください（観光情報、交通案内、ショッピング、飲食店、イベント情報、挨拶、一般的な会話、その他、未分類）
         2. 感情: ユーザーの感情を1つだけ選んでください（ポジティブ、ネガティブ、ニュートラル）
         3. 参照ソース: 回答に使用した主なソース情報を1つ選んでください。以下のソース情報から選択してください：
-        {json.dumps(list(source_info.values()))}
+        {json.dumps(source_info_list, ensure_ascii=False, indent=2)}
 
         重要:
         - 参照ソースの選択は、回答の内容と最も関連性の高いソースを選んでください。回答の内容が特定のソースから直接引用されている場合は、そのソースを選択してください。
@@ -220,10 +229,13 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
         生成された回答：
         {response_text}
         """
-        
+        print("===========")
+        print(analysis_prompt)
         # 分析の実行
         analysis_response = model.generate_content(analysis_prompt)
         analysis_text = analysis_response.text
+        print("===========")
+        print(analysis_text)
         
         # JSON部分を抽出
         try:
@@ -239,18 +251,21 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
             sentiment = analysis_json.get("sentiment", "neutral")
             source_doc = analysis_json.get("source", {}).get("name", "")
             source_page = analysis_json.get("source", {}).get("page", "")
+            print("1111111111")
+            print(source_doc)
 
             # 単純な挨拶のみの場合はソース情報をクリア
-            message_text = message.text.strip().lower() if message.text else ""
-            greetings = ["こんにちは", "こんにちわ", "おはよう", "おはようございます", "こんばんは", "よろしく", "ありがとう", "さようなら", "hello", "hi", "thanks", "thank you", "bye"]
+            # message_text = message.text.strip().lower() if message.text else ""
+            # greetings = ["こんにちは", "こんにちわ", "おはよう", "おはようございます", "こんばんは", "よろしく", "ありがとう", "さようなら", "hello", "hi", "thanks", "thank you", "bye"]
             
-            if category == "挨拶" or any(greeting in message_text for greeting in greetings):
-                # 応答テキストに「情報ソース:」が含まれているかチェック
-                if response_text and "情報ソース:" in response_text:
-                    # 情報ソース部分を削除
-                    response_text = re.sub(r'\n*情報ソース:.*$', '', response_text, flags=re.DOTALL)
-                source_doc = ""
-                source_page = ""
+            # if category == "挨拶" or any(greeting in message_text for greeting in greetings):
+            #     # 応答テキストに「情報ソース:」が含まれているかチェック
+            #     if response_text and "情報ソース:" in response_text:
+            #         # 情報ソース部分を削除
+            #         response_text = re.sub(r'\n*情報ソース:.*$', '', response_text, flags=re.DOTALL)
+            #     source_doc = ""
+            #     source_page = ""
+            #     print("2222222222222")
                 
         except Exception as json_error:
             print(f"JSON解析エラー: {str(json_error)}")
@@ -258,6 +273,7 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
             sentiment = "neutral"
             source_doc = ""
             source_page = ""
+            print("3333333333333")
         
         # チャット履歴を保存
         chat_id = str(uuid.uuid4())
