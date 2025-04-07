@@ -874,6 +874,7 @@ async def get_uploaded_resources():
 
 # using gemini ocr 
 def ocr_with_gemini(images, instruction):
+    batch_size = 2 # performance size
     prompt = f"""
     {instruction}
     These are pages from a PDF document. Extract all text content while preserving the structure.
@@ -881,12 +882,18 @@ def ocr_with_gemini(images, instruction):
     Maintain paragraph breaks and formatting.
     """
     # Assuming `model.generate_content` works with images and a prompt
-    response = model.generate_content([prompt, *images])  # Passing the image objects directly
+    # response = model.generate_content([prompt, *images])  # Passing the image objects directly
 
     # Combine all text parts if it's a multi-part response
     full_text = ""
-    for part in response.parts:
-        full_text += part.text
+    for i in range(0, len(images), batch_size):
+        image_batch = images[i:i+batch_size]
+        try:
+            response = model.generate_content([prompt, *image_batch])
+            for part in response.parts:
+                full_text += part.text
+        except Exception as e:
+            full_text += f"\n\n[Error processing pages {i}–{i+batch_size-1}]: {e}\n"
 
     return full_text
 

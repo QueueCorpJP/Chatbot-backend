@@ -70,8 +70,7 @@ async def extract_text_from_html(url: str) -> str:
     # print(text)
     # # URLとタイトルを含めたテキストを返す
     # return f"=== URL: {url} ===\n=== タイトル: {title} ===\n\n{text}"
-    # async with sync_playwright() as p:
-    #     browser = p.chromium.launch(headless=True)
+   
     playwright = await async_playwright().start()  # ✅ await before using
     browser = await playwright.chromium.launch(headless=True)
     page = await browser.new_page()
@@ -81,6 +80,19 @@ async def extract_text_from_html(url: str) -> str:
     html = await page.content()
     await browser.close()
     await playwright.stop() 
+    # Check for permission-denied indicators before parsing
+    
+    if any(msg in html for msg in [
+        "You need access", 
+        "Request access", 
+        "You don’t have access", 
+        "Sign in to continue", 
+        "Sign into continue", 
+        "To view this document",
+        "Use a private browsing window to sign in"
+    ]):
+        raise PermissionError(f"Permission denied: You don't have access to this Google Doc → {url}")
+
     soup = BeautifulSoup(html, "html.parser")
 
     for tag in soup(['script', 'style', 'meta', 'link', 'noscript', 'header', 'footer', 'nav']):
