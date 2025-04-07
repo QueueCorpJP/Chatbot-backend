@@ -17,3 +17,4 @@ psycopg2==2.9.10
 psycopg2-binary==2.9.10
 boto3==1.37.22
 youtube_transcript_api
+playwright

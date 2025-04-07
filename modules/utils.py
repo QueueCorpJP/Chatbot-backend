@@ -8,6 +8,8 @@ import pandas as pd
 import time
 from dotenv import load_dotenv
 import os
+from playwright.async_api import async_playwright
+
 
 load_dotenv()
 
@@ -42,31 +44,54 @@ def transcribe_youtube_video(youtube_url: str) -> str:
         print(f"Error: {str(e)}")
         return f"Error: {str(e)}"
 
-def extract_text_from_html(url: str) -> str:
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
-    response = requests.get(url, headers=headers, timeout=10)
-    response.raise_for_status()  # エラーがあれば例外を発生
-    response.encoding = response.apparent_encoding
-    # HTMLをパース
-    soup = BeautifulSoup(response.text, 'html.parser')
+async def extract_text_from_html(url: str) -> str:
+    # headers = {
+    #     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    # }
+    # response = requests.get(url, headers=headers, timeout=10)
+    # response.raise_for_status()  # エラーがあれば例外を発生
+    # response.encoding = response.apparent_encoding
+    # # HTMLをパース
+    # soup = BeautifulSoup(response.text, 'html.parser')
     
-    # 不要なタグを削除
+    # # 不要なタグを削除
+    # for tag in soup(['script', 'style', 'meta', 'link', 'noscript', 'header', 'footer', 'nav']):
+    #     tag.decompose()
+    
+    # # テキストを抽出
+    # text = soup.get_text(separator='\n')
+    #  # 余分な空白と改行を整理
+    # text = re.sub(r'\n+', '\n', text)
+    # text = re.sub(r' +', ' ', text)
+    
+    # # タイトルを取得
+    # title = soup.title.string if soup.title else "タイトルなし"
+    # print("xxxxxxxxxxx")
+    # print(text)
+    # # URLとタイトルを含めたテキストを返す
+    # return f"=== URL: {url} ===\n=== タイトル: {title} ===\n\n{text}"
+    # async with sync_playwright() as p:
+    #     browser = p.chromium.launch(headless=True)
+    playwright = await async_playwright().start()  # ✅ await before using
+    browser = await playwright.chromium.launch(headless=True)
+    page = await browser.new_page()
+    await page.goto(url, timeout=45000)
+    await page.wait_for_timeout(3000)
+
+    html = await page.content()
+    await browser.close()
+    await playwright.stop() 
+    soup = BeautifulSoup(html, "html.parser")
+
     for tag in soup(['script', 'style', 'meta', 'link', 'noscript', 'header', 'footer', 'nav']):
         tag.decompose()
-    
-    # テキストを抽出
+
     text = soup.get_text(separator='\n')
-     # 余分な空白と改行を整理
     text = re.sub(r'\n+', '\n', text)
     text = re.sub(r' +', ' ', text)
-    
-    # タイトルを取得
-    title = soup.title.string if soup.title else "タイトルなし"
-    
-    # URLとタイトルを含めたテキストを返す
-    return f"=== URL: {url} ===\n=== タイトル: {title} ===\n\n{text}"
+
+    title = soup.title.string.strip() if soup.title and soup.title.string else "No Title"
+    return f"=== URL: {url} ===\n=== Title: {title} ===\n\n{text}"
 
 def _process_video_file(contents, filename):
     """Excelファイルを処理してデータフレーム、セクション、テキストを返す"""

@@ -81,7 +81,7 @@ class KnowledgeBase:
 knowledge_base = KnowledgeBase()
 
 # URLからテキストを抽出する関数
-def extract_text_from_url(url: str) -> str:
+async def extract_text_from_url(url: str) -> str:
     """URLからテキストコンテンツを抽出する"""
     try:
         # URLが有効かチェック
@@ -90,7 +90,7 @@ def extract_text_from_url(url: str) -> str:
         if 'youtube.com' in url or 'youtu.be' in url:
             return transcribe_youtube_video(url)
         else:
-            return extract_text_from_html(url)
+            return await extract_text_from_html(url)
     except Exception as e:
         print(f"URLからのテキスト抽出エラー: {str(e)}")
         return f"URLからのテキスト抽出エラー: {str(e)} ===\n"
@@ -126,7 +126,7 @@ async def process_url(url: str, user_id: str = None, company_id: str = None, db:
                 )
         
         # URLからテキストを抽出
-        extracted_text = extract_text_from_url(url)
+        extracted_text = await extract_text_from_url(url)
         if extracted_text.startswith("URLからのテキスト抽出エラー:"):
             raise HTTPException(
                 status_code=500,
