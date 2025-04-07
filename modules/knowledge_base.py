@@ -386,8 +386,6 @@ async def process_file(file: UploadFile = File(...), user_id: str = None, compan
             print(f"現在のアクティブ状態: {active}")
             
         # ユーザーIDがある場合はドキュメントアップロードカウントを更新
-        print(f"user_id:::{user_id}")
-        print(limits_check.get("is_unlimited", False))
         # if user_id and not limits_check.get("is_unlimited", False):
         if user_id:
             updated_limits = update_usage_count(user_id, "document_uploads_used", db)
@@ -612,7 +610,6 @@ def _process_pdf_file(contents, filename):
         all_data = []
         current_section = "一般情報"
         current_content = []
-        
         for line in all_text.split("\n"):
             line = line.strip()
             if not line:
@@ -657,6 +654,7 @@ def _process_pdf_file(contents, filename):
                 'file': [filename],
                 'url': [None]
             })
+            extracted_text += all_text
         else: 
             # データフレームを作成
             result_df = pd.DataFrame(all_data) if all_data else pd.DataFrame({
@@ -914,7 +912,7 @@ def ocr_pdf_to_text_from_bytes(pdf_content: bytes):
     return extracted_text
 
 # Convert PDF to images directly from bytes
-def convert_pdf_to_images_from_bytes(pdf_content, dpi=300):
+def convert_pdf_to_images_from_bytes(pdf_content, dpi=200):
     images = convert_from_bytes(pdf_content, dpi=dpi)
     return images  # This will return a list of PIL Image objects
 # 以下は既存の処理関数（_process_excel_file, _process_pdf_file, _process_txt_file, _extract_text_from_image_with_gemini）
