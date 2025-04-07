@@ -93,7 +93,7 @@ def extract_text_from_url(url: str) -> str:
             return extract_text_from_html(url)
     except Exception as e:
         print(f"URLからのテキスト抽出エラー: {str(e)}")
-        return f"=== URL: {url} ===\n=== エラー: {str(e)} ===\n"
+        return f"URLからのテキスト抽出エラー: {str(e)} ===\n"
 # URLを処理する関数
 async def process_url(url: str, user_id: str = None, company_id: str = None, db: Connection = None):
     """URLを処理して知識ベースを更新する"""
@@ -127,6 +127,12 @@ async def process_url(url: str, user_id: str = None, company_id: str = None, db:
         
         # URLからテキストを抽出
         extracted_text = extract_text_from_url(url)
+        if extracted_text.startswith("URLからのテキスト抽出エラー:"):
+            raise HTTPException(
+                status_code=500,
+                detail=extracted_text  # エラー詳細をそのまま返す
+            )
+        
         # テキストをセクションに分割
         sections = {}
         current_section = "メインコンテンツ"

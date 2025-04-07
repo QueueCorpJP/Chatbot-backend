@@ -48,7 +48,7 @@ def extract_text_from_html(url: str) -> str:
     }
     response = requests.get(url, headers=headers, timeout=10)
     response.raise_for_status()  # エラーがあれば例外を発生
-    
+    response.encoding = response.apparent_encoding
     # HTMLをパース
     soup = BeautifulSoup(response.text, 'html.parser')
     
