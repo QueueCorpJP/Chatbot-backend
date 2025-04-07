@@ -873,7 +873,7 @@ async def get_uploaded_resources():
     }
 
 # using gemini ocr 
-async def ocr_with_gemini(images, instruction):
+def ocr_with_gemini(images, instruction):
     batch_size = 1 # performance size
     prompt = f"""
     {instruction}
@@ -889,7 +889,7 @@ async def ocr_with_gemini(images, instruction):
     for i in range(0, len(images), batch_size):
         image_batch = images[i:i+batch_size]
         try:
-            response = await model.generate_content([prompt, *image_batch])
+            response = model.generate_content([prompt, *image_batch])
             for part in response.parts:
                 full_text += part.text
         except Exception as e:
@@ -898,7 +898,7 @@ async def ocr_with_gemini(images, instruction):
     return full_text
 
 # Main OCR function
-async def ocr_pdf_to_text_from_bytes(pdf_content: bytes):
+def ocr_pdf_to_text_from_bytes(pdf_content: bytes):
     # Convert PDF to images directly from bytes
     images = convert_pdf_to_images_from_bytes(pdf_content)
 
@@ -920,7 +920,7 @@ async def ocr_pdf_to_text_from_bytes(pdf_content: bytes):
     """
 
     # Extract text using Gemini OCR
-    extracted_text = await ocr_with_gemini(images, instruction)
+    extracted_text = ocr_with_gemini(images, instruction)
 
     return extracted_text
 
