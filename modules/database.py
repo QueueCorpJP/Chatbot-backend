@@ -201,7 +201,7 @@ def get_all_users(db: Connection) -> list:
     """すべてのユーザーを取得します"""
     cursor = db.cursor(cursor_factory=RealDictCursor)
     cursor.execute("""
-        SELECT u.*, c.name AS company_name
+        SELECT u.*, COALESCE(c.name, 'No Company') AS company_name
         FROM users u
         LEFT JOIN companies c ON u.company_id = c.id
         WHERE u.role != 'admin'
