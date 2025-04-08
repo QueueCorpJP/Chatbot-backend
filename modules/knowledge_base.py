@@ -303,13 +303,13 @@ async def process_file(file: UploadFile = File(...), user_id: str = None, compan
                 print(f"PDFファイル処理開始: {file.filename}")
                 
                 # PDFファイルが大きすぎる場合はエラーを返す
-                if file_size_mb > 50:
+                if file_size_mb > 10:
                     raise HTTPException(
                         status_code=400,
-                        detail=f"PDFファイルが大きすぎます ({file_size_mb:.2f} MB)。50MB以下のファイルを使用するか、ファイルを分割してください。"
+                        detail=f"PDFファイルが大きすぎます ({file_size_mb:.2f} MB)。10MB以下のファイルを使用するか、ファイルを分割してください。"
                     )
                 
-                df, sections, extracted_text = _process_pdf_file(contents, file.filename)
+                df, sections, extracted_text = await _process_pdf_file(contents, file.filename)
                 print(f"PDFファイル処理完了: {len(df)} 行のデータを抽出")
             elif file_extension == 'txt':
                 print(f"テキストファイル処理開始: {file.filename}")
@@ -585,7 +585,7 @@ def _process_excel_file(contents, filename):
         raise
 
 # PDFファイルを処理する内部関数
-def _process_pdf_file(contents, filename):
+async def _process_pdf_file(contents, filename):
     """PDFファイルを処理してデータフレーム、セクション、テキストを返す"""
     try:
         # BytesIOオブジェクトを作成
@@ -652,7 +652,7 @@ def _process_pdf_file(contents, filename):
             })
         
         if all_text == "":
-            all_text = ocr_pdf_to_text_from_bytes(contents)
+            all_text = await ocr_pdf_to_text_from_bytes(contents)
             result_df = pd.DataFrame(all_data) if all_data else pd.DataFrame({
                 'section': ["一般情報"],
                 'content': [all_text],
@@ -873,7 +873,7 @@ async def get_uploaded_resources():
     }
 
 # using gemini ocr 
-def ocr_with_gemini(images, instruction):
+# def ocr_with_gemini(images, instruction):
     batch_size = 1 # performance size
     prompt = f"""
     {instruction}
@@ -896,9 +896,28 @@ def ocr_with_gemini(images, instruction):
             full_text += f"\n\n[Error processing pages {i}–{i+batch_size-1}]: {e}\n"
 
     return full_text
+async def ocr_with_gemini(images, instruction):
+    prompt_base = f"""
+    {instruction}
+    This is a page from a PDF document. Extract all text content while preserving the structure.
+    Pay special attention to tables, columns, headers, and any structured content.
+    Maintain paragraph breaks and formatting.
+    """
+    
+    full_text = ""
+    for idx, image in enumerate(images):
+        try:
+            prompt = f"{prompt_base}\n\nPage {idx + 1}:"
+            response = model.generate_content([prompt, image])
+            for part in response.parts:
+                full_text += f"\n\n--- Page {idx + 1} ---\n{part.text}"
+        except Exception as e:
+            full_text += f"\n\n[Error processing page {idx + 1}]: {e}\n"
+
+    return full_text
 
 # Main OCR function
-def ocr_pdf_to_text_from_bytes(pdf_content: bytes):
+async def ocr_pdf_to_text_from_bytes(pdf_content: bytes):
     # Convert PDF to images directly from bytes
     images = convert_pdf_to_images_from_bytes(pdf_content)
 
@@ -920,7 +939,7 @@ def ocr_pdf_to_text_from_bytes(pdf_content: bytes):
     """
 
     # Extract text using Gemini OCR
-    extracted_text = ocr_with_gemini(images, instruction)
+    extracted_text = await ocr_with_gemini(images, instruction)
 
     return extracted_text
 
