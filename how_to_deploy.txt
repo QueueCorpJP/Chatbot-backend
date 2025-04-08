@@ -1,6 +1,53 @@
-バックエンド（FastAPI on AWS EC2）
+チャットボットバックエンド
 
-1. デプロイ手順
+1. ローカル開発セットアップ
+リポジトリのクローン
+  git clone https://github.com/QueueCorpJP/Chatbot-backend.git
+  cd Chatbot-backend
+
+Python依存関係のインストール
+  python -m venv venv
+
+  # macOS/Linuxの場合
+  source venv/bin/activate
+
+  # Windowsの場合
+  venv\Scripts\activate
+
+  # 必要な依存関係をインストール
+  pip install -r requirements.txt
+  playwright install  # 重要
+
+PostgreSQLのインストール
+  Ubuntuの場合:
+    sudo apt update
+    sudo apt install postgresql postgresql-contrib
+  macOS (Homebrewを使用):
+    brew install postgresql
+  Windowsの場合: PostgreSQL公式サイトからPostgreSQLをダウンロードしてインストールします。
+
+PostgreSQLデータベースの設定
+  PostgreSQLをインストールした後、データベースとユーザーを作成する必要があります。
+
+.env ファイルの設定
+  プロジェクトのルートディレクトリに .env ファイルを作成し、以下の内容を追加します（プレースホルダーを実際の値に置き換えてください）：
+  GOOGLE_API_KEY=AI...7I
+  COMPANY_NAME="Queue"
+  WEBSHAREPROXY_USERNAME=xv...ll
+  WEBSHAREPROXY_PASSWORD=t6...rt
+  ASSEMBLYAI_API_KEY=12...7b
+  DB_NAME=chatbot
+  DB_USER=postgres
+  DB_PASSWORD=yourpassword
+  DB_HOST=localhost
+  DB_PORT=5432
+
+FastAPIアプリの実行
+  python main.py
+
+サーバーは `http://localhost:8083` で起動します。
+
+2. AWS EC2インスタンスへのデプロイ
 
 初期セットアップ：
   - PostgreSQL のインストール
@@ -61,24 +108,62 @@
   - Nginx を再起動：
     sudo systemctl restart nginx
 
-2. 起動手順
+起動手順
+  systemd を使用する場合：sudo systemctl start chatbot-backend
+  ※サービスが未設定の場合は、別途 chatbot-backend.service を /etc/systemd/system/ に作成してください。
 
-systemd を使用する場合：sudo systemctl start chatbot-backend
-※サービスが未設定の場合は、別途 chatbot-backend.service を /etc/systemd/system/ に作成してください。
-
-3. メンテナンス手順
-
-最新のコードを取得：git pull
-サービスを再起動：sudo systemctl restart chatbot-backend
-ログを確認：journalctl -u chatbot-backend -f
+メンテナンス手順
+  最新のコードを取得：git pull
+  サービスを再起動：sudo systemctl restart chatbot-backend
+  ログを確認：journalctl -u chatbot-backend -f
 
 
 
 ===========================English=======================================
 
-Backend (FastAPI on AWS EC2)
+Chatbot Backend 
 
-1. Deployment Procedures
+1. Local Development Setup
+Clone the Repository:
+  git clone https://github.com/QueueCorpJP/Chatbot-backend.git
+  cd Chatbot-backend
+
+Install Python Dependencies:
+  python -m venv venv
+  # For macOS/Linux
+  source venv/bin/activate
+  # For Windows
+  venv\Scripts\activate
+  # Install required dependencies
+  pip install -r requirements.txt
+  playwright install # important
+
+Install PostgreSQL:
+  For Ubuntu: sudo apt update
+              sudo apt install postgresql postgresql-contrib
+  For macOS (using Homebrew): brew install postgresql
+  For Windows: Download and install PostgreSQL from the official PostgreSQL website.
+
+Configure PostgreSQL Database:
+  After installing PostgreSQL, you'll need to create a database and user.
+
+Set Up the .env File:
+  Create a .env file in the project root directory with the following content (replace the placeholders with your actual values):
+  GOOGLE_API_KEY=AI...7I
+  COMPANY_NAME="Queue"
+  WEBSHAREPROXY_USERNAME=xv...ll
+  WEBSHAREPROXY_PASSWORD=t6...rt
+  ASSEMBLYAI_API_KEY=12...7b
+  DB_NAME=chatbot
+  DB_USER=postgres
+  DB_PASSWORD=yourpassword
+  DB_HOST=localhost
+  DB_PORT=5432
+
+Run the FastAPI App:
+  python main.py
+
+2. Deploying to AWS EC2 Instance
 
 Initial Setup:
   - Install PostgreSQL:
@@ -112,6 +197,7 @@ Initial Setup:
 
   - Install dependencies:
     pip install -r requirements.txt
+    playwright install
 
   - Create .env File:
     Example .env file:
@@ -151,11 +237,11 @@ Reverse Proxy Setup (Nginx):
   - Restart Nginx:
     sudo systemctl restart nginx
 
-2. Startup Procedure
+Startup Procedure
   If using systemd:
   sudo systemctl start chatbot-backend
 
-3. Maintenance Procedures
+Maintenance Procedures
   Pull latest changes: git pull
   Restart the service: sudo systemctl restart chatbot-backend
   View backend logs: journalctl -u chatbot-backend -f

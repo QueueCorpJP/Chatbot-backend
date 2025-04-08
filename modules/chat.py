@@ -99,7 +99,7 @@ async def process_chat(message: ChatMessage, db: Connection = Depends(get_db)):
         source_info_list = [
             {
                 "name": res_name,
-                "section": "不明",  # or default
+                "section": "",  # or default
                 "page": ""
             }
             for res_name in active_resource_names
