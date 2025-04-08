@@ -144,7 +144,7 @@ async def admin_register_user(user_data: AdminUserCreate, current_user = Depends
                 password=user_data.password,
                 name=user_data.name,
                 role=role,
-                company_id="",
+                company_id=None,
                 db=db
             )
             
