@@ -23,6 +23,7 @@ import uuid
 from pdf2image import convert_from_bytes 
 from modules.config import setup_gemini
 from .utils import transcribe_youtube_video, extract_text_from_html, _process_video_file
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -874,28 +875,47 @@ async def get_uploaded_resources():
 
 # using gemini ocr 
 # def ocr_with_gemini(images, instruction):
-    batch_size = 1 # performance size
-    prompt = f"""
-    {instruction}
-    These are pages from a PDF document. Extract all text content while preserving the structure.
-    Pay special attention to tables, columns, headers, and any structured content.
-    Maintain paragraph breaks and formatting.
-    """
-    # Assuming `model.generate_content` works with images and a prompt
-    # response = model.generate_content([prompt, *images])  # Passing the image objects directly
+#     batch_size = 4 # performance size
+#     prompt = f"""
+#     {instruction}
+#     These are pages from a PDF document. Extract all text content while preserving the structure.
+#     Pay special attention to tables, columns, headers, and any structured content.
+#     Maintain paragraph breaks and formatting.
+#     """
+#     # Assuming `model.generate_content` works with images and a prompt
+#     # response = model.generate_content([prompt, *images])  # Passing the image objects directly
 
-    # Combine all text parts if it's a multi-part response
-    full_text = ""
-    for i in range(0, len(images), batch_size):
-        image_batch = images[i:i+batch_size]
-        try:
-            response = model.generate_content([prompt, *image_batch])
-            for part in response.parts:
-                full_text += part.text
-        except Exception as e:
-            full_text += f"\n\n[Error processing pages {i}–{i+batch_size-1}]: {e}\n"
+#     # Combine all text parts if it's a multi-part response
+#     full_text = ""
+#     for i in range(0, len(images), batch_size):
+#         image_batch = images[i:i+batch_size]
+#         try:
+#             response = model.generate_content([prompt, *image_batch])
+#             for part in response.parts:
+#                 full_text += part.text
+#         except Exception as e:
+#             full_text += f"\n\n[Error processing pages {i}–{i+batch_size-1}]: {e}\n"
 
-    return full_text
+#     return full_text
+# async def ocr_with_gemini(images, instruction):
+#     prompt_base = f"""
+#     {instruction}
+#     This is a page from a PDF document. Extract all text content while preserving the structure.
+#     Pay special attention to tables, columns, headers, and any structured content.
+#     Maintain paragraph breaks and formatting.
+#     """
+    
+#     full_text = ""
+#     for idx, image in enumerate(images):
+#         try:
+#             prompt = f"{prompt_base}\n\nPage {idx + 1}:"
+#             response = model.generate_content([prompt, image])
+#             for part in response.parts:
+#                 full_text += f"\n\n--- Page {idx + 1} ---\n{part.text}"
+#         except Exception as e:
+#             full_text += f"\n\n[Error processing page {idx + 1}]: {e}\n"
+
+#     return full_text
 async def ocr_with_gemini(images, instruction):
     prompt_base = f"""
     {instruction}
@@ -903,18 +923,22 @@ async def ocr_with_gemini(images, instruction):
     Pay special attention to tables, columns, headers, and any structured content.
     Maintain paragraph breaks and formatting.
     """
-    
-    full_text = ""
-    for idx, image in enumerate(images):
-        try:
+
+    async def process_page(idx, image):
+        def sync_call():
             prompt = f"{prompt_base}\n\nPage {idx + 1}:"
             response = model.generate_content([prompt, image])
-            for part in response.parts:
-                full_text += f"\n\n--- Page {idx + 1} ---\n{part.text}"
-        except Exception as e:
-            full_text += f"\n\n[Error processing page {idx + 1}]: {e}\n"
+            return f"\n\n--- Page {idx + 1} ---\n" + "".join(part.text for part in response.parts)
 
-    return full_text
+        try:
+            return await asyncio.to_thread(sync_call)
+        except Exception as e:
+            return f"\n\n[Error processing page {idx + 1}]: {e}\n"
+
+    tasks = [process_page(idx, img) for idx, img in enumerate(images)]
+    results = await asyncio.gather(*tasks)
+
+    return "".join(results)
 
 # Main OCR function
 async def ocr_pdf_to_text_from_bytes(pdf_content: bytes):
