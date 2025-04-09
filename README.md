@@ -1,6 +1,6 @@
 # チャットボットバックエンド
 
-# 1. ローカル開発セットアップ
+# ローカル開発セットアップ
 
 ## リポジトリのクローン
 
@@ -71,9 +71,62 @@ python main.py
 
 サーバーは `http://localhost:8083` で起動します。
 
-# 2. AWS EC2 インスタンスへのデプロイ
+# AWS EC2 上で FastAPI + PostgreSQL アプリケーションを構築・デプロイする手順
 
-## 初期セットアップ：
+# 1. AWS EC2 インスタンスの作成（Amazon Linux 2023 + g4dn.2xlarge）
+
+## (1) AWS にログイン：
+
+https://aws.amazon.com/console/ にアクセスしてログインします。
+
+## (2) EC2 ダッシュボードへ移動：
+
+「EC2」と検索し、ダッシュボードを開きます。
+
+## (3) インスタンスの起動：
+
+「インスタンスを起動」をクリックします。
+
+## (4) Amazon マシンイメージ（AMI）を選択：
+
+Amazon Linux 2023 を選択してください。
+
+## (5) インスタンスタイプを選択：
+
+g4dn.2xlarge を選択します（NVIDIA T4 GPU 搭載、GPU ベースのアプリに最適）。
+
+## (6) キーペアを作成または選択：
+
+SSH 接続用に既存のキーペアを選ぶか、新しく作成してください。
+
+## (7) ストレージ設定：
+
+必要に応じて EBS（SSD）のサイズを増やすことを推奨します（例：50GB〜100GB 以上）。
+
+## (8) セキュリティグループ設定：
+
+以下のポートを開放します：
+
+- 22（SSH）
+
+- 80（HTTP）
+
+- 443（HTTPS）
+
+- 8083（FastAPI のバックエンド）
+
+## (9) インスタンスの起動と接続：
+
+.pem ファイルを使って以下のように SSH 接続します：
+
+```bash
+chmod 400 your-key.pem
+ssh -i "your-key.pem" ec2-user@your-ec2-ip
+```
+
+# 2. AWS EC2 インスタンスへの FastAPI + PostgreSQL アプリケーションのデプロイ手順
+
+## (1) 初期セットアップ：
 
 - PostgreSQL のインストール
 
@@ -154,7 +207,7 @@ DB_PORT = 5432
 python main.py
 ```
 
-## リバースプロキシ設定（Nginx）：
+## (2) リバースプロキシ設定（Nginx）：
 
 - Nginx をインストール（未インストールの場合）：
 
@@ -190,13 +243,16 @@ server {
 sudo systemctl restart nginx
 ```
 
-## 起動手順
+## (3) 起動手順
 
-systemd を使用する場合：sudo systemctl start chatbot-backend
-※サービスが未設定の場合は、別途 chatbot-backend.service を /etc/systemd/system/ に作成してください。
+### systemd を使用する場合：sudo systemctl start chatbot-backend
 
-## メンテナンス手順
+### ※サービスが未設定の場合は、別途 chatbot-backend.service を /etc/systemd/system/ に作成してください。
 
-最新のコードを取得：git pull
-サービスを再起動：sudo systemctl restart chatbot-backend
-ログを確認：journalctl -u chatbot-backend -f
+## (4) メンテナンス手順
+
+### 最新のコードを取得：git pull
+
+### サービスを再起動：sudo systemctl restart chatbot-backend
+
+### ログを確認：journalctl -u chatbot-backend -f
