@@ -603,7 +603,8 @@ async def _process_pdf_file(contents, filename):
         for i, page in enumerate(pdf_reader.pages):
             page_text = page.extract_text()
             if page_text:
-                section_name = f"ページ {i+1}"
+                page_text = page_text.replace('\x00', '') # 🧼 Remove NUL characters
+                section_name = f"ページ {i+1}" 
                 sections[section_name] = page_text
                 all_text += page_text + "\n"
                 extracted_text += f"=== {section_name} ===\n{page_text}\n\n"
