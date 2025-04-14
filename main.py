@@ -1,7 +1,7 @@
 """
 メインアプリケーションファイル
 FastAPIアプリケーションの設定とルーティングを行います
-main
+main.py
 """
 import os
 import os.path
