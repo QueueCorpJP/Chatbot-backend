@@ -34,6 +34,8 @@ from modules.admin import (
 from modules.company import get_company_name, set_company_name
 from modules.auth import get_current_user, get_current_admin, register_new_user, get_admin_or_user, get_company_admin
 from modules.resource import get_uploaded_resources_by_company_id, toggle_resource_active_by_id, remove_resource_by_id
+import json
+
 # ロギングの設定
 logger = setup_logging()
 
@@ -306,6 +308,116 @@ async def admin_analyze_chats(current_user = Depends(get_admin_or_user), db: Con
         # 通常のユーザーの場合は自分のデータのみを分析
         user_id = current_user["id"]
         return await analyze_chats(user_id, db)
+
+# 詳細ビジネス分析エンドポイント
+@app.post("/chatbot/api/admin/detailed-analysis")
+async def admin_detailed_analysis(request: dict, current_user = Depends(get_admin_or_user), db: Connection = Depends(get_db)):
+    """詳細なビジネス分析を行う"""
+    try:
+        # ユーザー情報の取得
+        is_special_admin = current_user["email"] == "queue@queuefood.co.jp" and current_user.get("is_special_admin", False)
+        
+        # プロンプトを取得
+        prompt = request.get("prompt", "")
+        
+        # 通常の分析結果を取得
+        if is_special_admin:
+            analysis_result = await analyze_chats(None, db)
+        else:
+            analysis_result = await analyze_chats(current_user["id"], db)
+        
+        # チャット履歴からのサンプルデータを取得（analysis_resultから取得可能）
+        # カテゴリーとセンチメントの分布から洞察を生成
+        categories = analysis_result.get("category_distribution", {})
+        sentiments = analysis_result.get("sentiment_distribution", {})
+        questions = analysis_result.get("common_questions", [])
+        
+        # Gemini APIで詳細な分析を実行
+        from modules.admin import model
+        
+        analysis_prompt = f"""
+        {prompt}
+        
+        # 分析データ
+        
+        ## カテゴリ分布:
+        {json.dumps(categories, ensure_ascii=False, indent=2)}
+        
+        ## 感情分布:
+        {json.dumps(sentiments, ensure_ascii=False, indent=2)}
+        
+        ## よくある質問（上位件）:
+        {json.dumps(questions, ensure_ascii=False, indent=2)}
+        
+        ## 基本的な洞察:
+        {analysis_result.get("insights", "")}
+        """
+        
+        # Gemini APIによる詳細分析
+        analysis_response = model.generate_content(analysis_prompt)
+        detailed_analysis_text = analysis_response.text
+        
+        # 詳細分析の結果をセクションごとに分割して整形
+        # 実際のプロンプトに合わせてセクション分割のルールを調整する必要があります
+        import re
+        
+        # 各セクションのデータ
+        detailed_analysis = {
+            "detailed_topic_analysis": "",
+            "efficiency_opportunities": "",
+            "frustration_points": "",
+            "improvement_suggestions": "",
+            "communication_gaps": "",
+            "specific_recommendations": ""
+        }
+        
+        # テキスト全体から各セクションを抽出する簡易的な方法
+        # より高度な抽出が必要な場合は、正規表現やセクション名の検索方法を調整してください
+        sections = [
+            ("頻出トピック", "detailed_topic_analysis"),
+            ("業務効率化", "efficiency_opportunities"),
+            ("フラストレーション", "frustration_points"),
+            ("改善", "improvement_suggestions"),
+            ("コミュニケーションギャップ", "communication_gaps"),
+            ("具体的な改善提案", "specific_recommendations")
+        ]
+        
+        # 正規表現を使ってセクションを検出
+        current_section = None
+        lines = detailed_analysis_text.split("\n")
+        section_content = []
+        
+        for line in lines:
+            matched = False
+            for keyword, section_key in sections:
+                if keyword in line and (line.startswith("#") or line.startswith("**") or line.endswith("**") or line.endswith(":")):
+                    if current_section:
+                        detailed_analysis[current_section] = "\n".join(section_content).strip()
+                    current_section = section_key
+                    section_content = []
+                    matched = True
+                    break
+            
+            if not matched and current_section:
+                section_content.append(line)
+        
+        # 最後のセクションを処理
+        if current_section and section_content:
+            detailed_analysis[current_section] = "\n".join(section_content).strip()
+        
+        # 何もセクションに当てはまらなかった場合は、最初のキーに全テキストを入れる
+        if all(value == "" for value in detailed_analysis.values()):
+            detailed_analysis["detailed_topic_analysis"] = detailed_analysis_text
+        
+        return {
+            "detailed_analysis": detailed_analysis
+        }
+        
+    except Exception as e:
+        import traceback
+        print(f"詳細ビジネス分析エラー: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
 
 # 社員詳細情報を取得するエンドポイント
 @app.get("/chatbot/api/admin/employee-details/{employee_id}", response_model=List[ChatHistoryItem])
