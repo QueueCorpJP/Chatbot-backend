@@ -5,9 +5,11 @@
 import os
 import logging
 import sys
-from dotenv import load_dotenv
+from dotenv import load_dotenv, dotenv_values
 
 # 環境変数の読み込み
+for key in dotenv_values():
+    os.environ.pop(key, None)
 load_dotenv()
 
 # ロギングの設定
