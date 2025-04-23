@@ -50,6 +50,7 @@ set_admin_model(model)
 app = FastAPI()
 
 origins = [
+    "*",
     "http://localhost",
     "http://localhost:3000",  # if you're testing locally
     "https://chatbot-frontend-gztk.vercel.app/",  # replace with your frontend domain
@@ -60,7 +61,7 @@ origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,  # or ["*"] for all
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],  # or ["GET", "POST", ...]
     allow_headers=["*"],  # or specific headers
 )
