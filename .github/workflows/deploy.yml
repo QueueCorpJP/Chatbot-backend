@@ -3,41 +3,35 @@ name: Deploy to AWS
 on:
   push:
     branches:
-      - main # Trigger on push to the main branch
+      - main
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest # Use the latest Ubuntu runner
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2 # Checkout the repository code
-
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.x" # Set the version of Python you want to use
-          
-      - name: Pull latest code from main
-        run: |
-          cd /home/Chatbot/Chatbot-backend
-          git pull origin main  # Pull the latest code from the main branch
-
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt  # Install Python dependencies
+        uses: actions/checkout@v2
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-northeast-1 # AWS region
+          aws-region: ap-northeast-1
 
-      - name: Restart backend service
-        run: |
-          sudo systemctl restart chatbot-backend  # Restart the service to apply changes
+      # - name: Copy project to EC2
+      #   run: |
+      #     echo "${{ secrets.EC2_PRIVATE_KEY }}" > key.pem
+      #     chmod 400 key.pem
+      #     rsync -avz -e "ssh -i key.pem -o StrictHostKeyChecking=no" ./ ec2-user@${{ secrets.EC2_PUBLIC_IP }}:/home/ec2-user/Chatbot/Chatbot-backend
 
-      - name: Clean up
+      - name: SSH into EC2 and deploy
         run: |
-          echo "Deployment Complete"  # Optional: A step for cleanup or confirmation
+          echo "${{ secrets.EC2_PRIVATE_KEY }}" > key.pem
+          ssh -i key.pem -o StrictHostKeyChecking=no ec2-user@${{ secrets.EC2_PUBLIC_IP }} << 'EOF'
+            cd /home/ec2-user/Chatbot/Chatbot-backend
+            git pull origin main
+            pip install -r requirements.txt
+            sudo systemctl restart chatbot-backend
+          EOF
