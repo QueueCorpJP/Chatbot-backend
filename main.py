@@ -80,13 +80,13 @@ async def log_requests(request: Request, call_next):
 
 # CORSミドルウェアの設定
 # 統合環境では、すべてのオリジンを許可する
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["https://chatbot-frontend-nine-eta.vercel.app"],  # すべてのオリジンを許可
-    allow_credentials=True,  # クレデンシャルを含むリクエストを許可
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["https://chatbot-frontend-nine-eta.vercel.app"],  # すべてのオリジンを許可
+#     allow_credentials=True,  # クレデンシャルを含むリクエストを許可
+#     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+#     allow_headers=["*"],
+# )
 
 # アプリケーション起動時にデータベースを初期化
 init_db()
