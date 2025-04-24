@@ -49,14 +49,7 @@ set_admin_model(model)
 # FastAPIアプリケーションの作成
 app = FastAPI()
 
-origins = [
-    "*",
-    "http://localhost",
-    "http://localhost:3000",  # if you're testing locally
-    "https://chatbot-frontend-gztk.vercel.app/",  # replace with your frontend domain
-    "https://chatbot-frontend-gztk-git-main-queuecorp-jps-projects.vercel.app/",  # replace with your frontend domain
-    "https://chatbot-frontend-gztk-6ej6x79vu-queuecorp-jps-projects.vercel.app/",  # replace with your frontend domain
-]
+origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,

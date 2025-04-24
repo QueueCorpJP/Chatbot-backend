@@ -74,7 +74,7 @@ async def extract_text_from_html(url: str) -> str:
     playwright = await async_playwright().start()  # ✅ await before using
     browser = await playwright.chromium.launch(headless=True)
     page = await browser.new_page()
-    await page.goto(url, timeout=45000)
+    await page.goto(url, timeout=45000, wait_until="domcontentloaded")
     await page.wait_for_timeout(3000)
 
     html = await page.content()
