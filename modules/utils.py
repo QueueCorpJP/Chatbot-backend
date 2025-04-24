@@ -9,7 +9,8 @@ import time
 from dotenv import load_dotenv
 import os
 from playwright.async_api import async_playwright
-
+import fitz
+import tempfile
 
 load_dotenv()
 
@@ -104,6 +105,25 @@ async def extract_text_from_html(url: str) -> str:
 
     title = soup.title.string.strip() if soup.title and soup.title.string else "No Title"
     return f"=== URL: {url} ===\n=== Title: {title} ===\n\n{text}"
+
+async def extract_text_from_pdf(url: str) -> str:
+    response = requests.get(url)
+    if response.status_code != 200:
+        raise Exception(f"Failed to download PDF: {url}")
+
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        tmp.write(response.content)
+        tmp_path = tmp.name
+
+    try:
+        text = ""
+        with fitz.open(tmp_path) as doc:
+            for page in doc:
+                text += page.get_text()
+    finally:
+        os.remove(tmp_path)  # Clean up the file after reading
+
+    return f"=== URL: {url} ===\n=== Title: PDF Document ===\n\n{text.strip()}"
 
 def _process_video_file(contents, filename):
     """Excelファイルを処理してデータフレーム、セクション、テキストを返す"""

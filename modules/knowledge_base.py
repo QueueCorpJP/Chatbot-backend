@@ -22,7 +22,7 @@ from .auth import check_usage_limits
 import uuid
 from pdf2image import convert_from_bytes 
 from modules.config import setup_gemini
-from .utils import transcribe_youtube_video, extract_text_from_html, _process_video_file
+from .utils import transcribe_youtube_video, extract_text_from_html, _process_video_file, extract_text_from_pdf
 import asyncio
 
 logger = logging.getLogger(__name__)
@@ -90,6 +90,8 @@ async def extract_text_from_url(url: str) -> str:
             url = 'https://' + url
         if 'youtube.com' in url or 'youtu.be' in url:
             return transcribe_youtube_video(url)
+        elif url.lower().endswith('.pdf'):
+            return await extract_text_from_pdf(url)
         else:
             return await extract_text_from_html(url)
     except Exception as e:
