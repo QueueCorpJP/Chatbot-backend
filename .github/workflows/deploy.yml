@@ -17,7 +17,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.9"  # or "3.13" if you're using that
+          python-version: "3.9"  # or "3.9, 3.13" if you're using that
 
       - name: Set up SSH key
         run: |
